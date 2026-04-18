@@ -202,3 +202,211 @@ export function swapModel(role: string, registryKey: string): Promise<SentinelAd
     registry_key: registryKey,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Models / roles / presets
+// ---------------------------------------------------------------------------
+
+export interface SentinelRegistryEntry {
+  name?: string;
+  file?: string;
+  port?: number;
+  context_length?: number;
+  provider?: string;
+  gpu_layers?: number;
+  no_mmap?: boolean;
+  [key: string]: unknown;
+}
+
+export interface SentinelModelsRegistry {
+  models: Record<string, SentinelRegistryEntry>;
+}
+
+export interface SentinelRole {
+  role: string;
+  default: string | null;
+  registry_key: string | null;
+  overridden: boolean;
+  port: number | null;
+  context_length: number | null;
+}
+
+export interface SentinelModelsRoles {
+  roles: SentinelRole[];
+}
+
+export interface SentinelModelsPresets {
+  presets: Record<string, Record<string, string>>;
+}
+
+export function fetchModelsRegistry(): Promise<SentinelModelsRegistry> {
+  return get<SentinelModelsRegistry>("/v1/models/registry");
+}
+export function fetchModelsRoles(): Promise<SentinelModelsRoles> {
+  return get<SentinelModelsRoles>("/v1/models/roles");
+}
+export function fetchModelsPresets(): Promise<SentinelModelsPresets> {
+  return get<SentinelModelsPresets>("/v1/models/presets");
+}
+export function applyPreset(preset: string): Promise<SentinelCliAck> {
+  return post<SentinelCliAck>("/v1/models/presets/apply", { preset });
+}
+
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+export interface SentinelConfigSections {
+  sections: string[];
+}
+
+export interface SentinelConfigSection {
+  section: string;
+  value: unknown;
+}
+
+export function fetchConfigSections(): Promise<SentinelConfigSections> {
+  return get<SentinelConfigSections>("/v1/config/sections");
+}
+export function fetchConfigSection(section: string): Promise<SentinelConfigSection> {
+  return get<SentinelConfigSection>(`/v1/config/${encodeURIComponent(section)}`);
+}
+
+// ---------------------------------------------------------------------------
+// Deploy
+// ---------------------------------------------------------------------------
+
+export interface SentinelDeployHost {
+  alias: string;
+  host: string;
+}
+
+export interface SentinelDeployHosts {
+  hosts: SentinelDeployHost[];
+}
+
+export function fetchDeployHosts(): Promise<SentinelDeployHosts> {
+  return get<SentinelDeployHosts>("/v1/deploy/hosts");
+}
+
+// ---------------------------------------------------------------------------
+// Bench
+// ---------------------------------------------------------------------------
+
+export interface SentinelBenchRun {
+  run_id?: string;
+  label?: string;
+  model_file?: string;
+  port?: number;
+  passes: number;
+  tg_tok_s_mean?: number;
+  pp_tok_s_mean?: number;
+  thinking: boolean;
+  file: string;
+  mtime: string;
+}
+
+export interface SentinelBenchRuns {
+  runs: SentinelBenchRun[];
+}
+
+export interface BenchRunInput {
+  passes?: number;
+  label?: string;
+  port?: number;
+}
+
+export function fetchBenchRuns(limit = 20): Promise<SentinelBenchRuns> {
+  return get<SentinelBenchRuns>(`/v1/bench/runs?limit=${limit}`);
+}
+export function runBench(payload: BenchRunInput): Promise<SentinelCliAck> {
+  return post<SentinelCliAck>("/v1/bench/run", payload);
+}
+
+// ---------------------------------------------------------------------------
+// Evals
+// ---------------------------------------------------------------------------
+
+export interface SentinelEvalRun {
+  file: string;
+  mtime: string;
+  suite?: string;
+  run_id?: string;
+  pass_rate?: number;
+  cases_total?: number;
+  cases_passed?: number;
+  started_at?: string;
+  duration_seconds?: number;
+}
+
+export interface SentinelEvalRuns {
+  runs: SentinelEvalRun[];
+}
+
+export interface EvalRunInput {
+  suite?: string;
+  grounding?: boolean;
+  quick?: boolean;
+  memory?: boolean;
+}
+
+export function fetchEvalRuns(limit = 20): Promise<SentinelEvalRuns> {
+  return get<SentinelEvalRuns>(`/v1/evals/runs?limit=${limit}`);
+}
+export function runEval(payload: EvalRunInput): Promise<SentinelCliAck> {
+  return post<SentinelCliAck>("/v1/evals/run", payload);
+}
+
+// ---------------------------------------------------------------------------
+// Dream
+// ---------------------------------------------------------------------------
+
+export interface SentinelDreamRun {
+  last_run?: string;
+  sessions_reviewed?: number;
+  episodes_ingested?: number;
+  impulses_stored?: number;
+  facts_pruned?: number;
+  duration_seconds?: number;
+  errors?: string[];
+  dry_run?: boolean;
+  [key: string]: unknown;
+}
+
+export interface SentinelDreamRuns {
+  runs: SentinelDreamRun[];
+}
+
+export function fetchDreamRuns(): Promise<SentinelDreamRuns> {
+  return get<SentinelDreamRuns>("/v1/dream/runs");
+}
+
+// ---------------------------------------------------------------------------
+// Langfuse
+// ---------------------------------------------------------------------------
+
+export interface SentinelLangfuseStatus {
+  enabled: boolean;
+  base_url: string | null;
+  reachable: boolean;
+  latency_ms: number | null;
+  detail: string | null;
+}
+
+export function fetchLangfuseStatus(): Promise<SentinelLangfuseStatus> {
+  return get<SentinelLangfuseStatus>("/v1/langfuse/status");
+}
+export function syncLangfusePrompts(): Promise<SentinelCliAck> {
+  return post<SentinelCliAck>("/v1/langfuse/sync-prompts");
+}
+
+// ---------------------------------------------------------------------------
+// Shared CLI ack type (stdout/stderr returned by subprocess endpoints).
+// ---------------------------------------------------------------------------
+
+export interface SentinelCliAck {
+  status: string;
+  message: string;
+  stdout?: string;
+  stderr?: string;
+}

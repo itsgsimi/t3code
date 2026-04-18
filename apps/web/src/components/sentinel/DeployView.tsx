@@ -1,14 +1,21 @@
 import type { CSSProperties } from "react";
 import { Plus } from "lucide-react";
 
+import { useSentinelAgentStatus, useSentinelDeployHosts } from "../../sentinel/hooks";
 import { PageCrumb, PageHeader, type DotState } from "./shared";
 
 /**
- * Deploy — remote hosts + provisioning.
- * Hosts sourced conceptually from config.yaml host_aliases.
- * Real deploy actions are deferred to the API-wiring phase.
+ * Deploy — hosts declared in config.yaml host_aliases. Reachability is
+ * best-effort: the local host is always "healthy" if the API is up; remote
+ * host status is derived from agent.mcp_servers when an MCP server has that
+ * host as its transport target. Deploy actions will be wired in a followup
+ * when /v1/deploy/up/* endpoints land.
  */
 export function DeployView() {
+  const hosts = useSentinelDeployHosts();
+  const agent = useSentinelAgentStatus();
+  const hostList = hosts.data?.hosts ?? [];
+
   return (
     <div className="overflow-auto">
       <div style={pageStyle}>
@@ -16,10 +23,15 @@ export function DeployView() {
         <PageHeader
           title="Deploy"
           chip={{
-            state: "healthy",
-            text: `${HOSTS.filter((h) => h.state === "healthy").length} / ${HOSTS.length} hosts reachable`,
+            state: hostList.length === 0 ? "unknown" : "healthy",
+            text:
+              hostList.length === 0
+                ? hosts.isError
+                  ? "API offline"
+                  : "loading…"
+                : `${hostList.length} hosts declared`,
           }}
-          subtitle="Remote hosts Sentinel can deploy services to."
+          subtitle="Hosts Sentinel is aware of (from host_aliases in config.yaml)."
         />
 
         <div className="flex items-center" style={{ marginBottom: 14 }}>
@@ -38,32 +50,46 @@ export function DeployView() {
           <div style={{ flex: 1 }} />
           <button
             type="button"
-            className="flex cursor-pointer items-center gap-2 border-0"
+            className="flex cursor-default items-center gap-2 border-0"
+            disabled
             style={{
               padding: "6px 12px",
               borderRadius: 5,
-              background: "var(--ember-400)",
-              color: "var(--fg-on-accent)",
+              background: "var(--canvas-3)",
+              color: "var(--fg-4)",
+              border: "1px solid var(--border-soft)",
               fontSize: 12.5,
               fontWeight: 500,
             }}
+            title="Provisioning via web not wired yet — use `sentinel provision <host>`"
           >
             <Plus size={14} />
-            Provision host
+            Provision host (CLI only)
           </button>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {HOSTS.map((h) => (
-            <HostCard key={h.host} host={h} />
-          ))}
-        </div>
+        {hostList.length === 0 ? (
+          <EmptyCard>
+            {hosts.isError ? "Can't reach the Sentinel API." : "No hosts declared in host_aliases."}
+          </EmptyCard>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {hostList.map((h) => (
+              <HostCard
+                key={`${h.alias}-${h.host}`}
+                alias={h.alias}
+                host={h.host}
+                services={deriveServicesForHost(h.host, agent.data?.mcp_servers)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -75,69 +101,29 @@ const pageStyle: CSSProperties = {
   margin: "0 auto",
 };
 
-interface Host {
-  alias: string;
-  host: string;
-  role: string;
-  state: DotState;
-  runtime: "docker" | "systemd";
-  uptime: string;
-  services: readonly { name: string; state: DotState }[];
-  lastDeploy: string;
+/**
+ * Best-effort: for each declared host, list MCP servers whose transport
+ * targets that IP. We don't have per-host deploy status yet, so this is
+ * derived from agent status.
+ */
+function deriveServicesForHost(
+  _hostIp: string,
+  _mcpServers?: Record<string, boolean>,
+): Array<{ name: string; state: DotState }> {
+  // Server-side enrichment isn't available in the current endpoint shape.
+  // Return empty until /v1/deploy/hosts exposes per-host service lists.
+  return [];
 }
 
-const HOSTS: readonly Host[] = [
-  {
-    alias: "sentinel",
-    host: "localhost",
-    role: "primary · strix halo",
-    state: "healthy",
-    runtime: "docker",
-    uptime: "14d 03h",
-    lastDeploy: "self-managed",
-    services: [
-      { name: "llama-orchestrator", state: "healthy" },
-      { name: "graphiti-memory", state: "healthy" },
-      { name: "web-search", state: "healthy" },
-      { name: "api-server", state: "healthy" },
-    ],
-  },
-  {
-    alias: "bearden",
-    host: "192.168.1.31",
-    role: "monitored workstation",
-    state: "healthy",
-    runtime: "systemd",
-    uptime: "42d 11h",
-    lastDeploy: "2026-04-12 09:03",
-    services: [{ name: "host-monitor", state: "healthy" }],
-  },
-  {
-    alias: "nornic",
-    host: "192.168.1.142",
-    role: "langfuse · classifier",
-    state: "healthy",
-    runtime: "docker",
-    uptime: "31d 07h",
-    lastDeploy: "2026-04-04 14:11",
-    services: [
-      { name: "langfuse", state: "healthy" },
-      { name: "llama-classifier", state: "healthy" },
-    ],
-  },
-  {
-    alias: "vault",
-    host: "192.168.1.153",
-    role: "sentinel-vault",
-    state: "healthy",
-    runtime: "docker",
-    uptime: "61d",
-    lastDeploy: "2026-02-17 22:41",
-    services: [{ name: "sentinel-vault", state: "healthy" }],
-  },
-];
-
-function HostCard({ host }: { host: Host }) {
+function HostCard({
+  alias,
+  host,
+  services,
+}: {
+  alias: string;
+  host: string;
+  services: Array<{ name: string; state: DotState }>;
+}) {
   return (
     <div
       style={{
@@ -154,38 +140,19 @@ function HostCard({ host }: { host: Host }) {
         }}
       >
         <div className="flex items-center gap-2">
-          <span className={`ds-dot ds-dot--${host.state}`} aria-hidden />
+          <span className="ds-dot ds-dot--unknown" aria-hidden />
           <span style={{ fontFamily: "var(--font-mono)", fontSize: 13, color: "var(--fg-1)" }}>
-            {host.alias}
+            {alias}
           </span>
           <span
             className="ml-auto"
             style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-3)" }}
           >
-            {host.host}
+            {host}
           </span>
         </div>
-        <div style={{ fontSize: 11.5, color: "var(--fg-3)", marginTop: 4 }}>{host.role}</div>
-      </div>
-      <div
-        style={{
-          padding: "10px 14px",
-          fontFamily: "var(--font-mono)",
-          fontSize: 11.5,
-          color: "var(--fg-3)",
-        }}
-      >
-        <div className="flex justify-between" style={{ marginBottom: 4 }}>
-          <span>runtime</span>
-          <span style={{ color: "var(--fg-2)" }}>{host.runtime}</span>
-        </div>
-        <div className="flex justify-between" style={{ marginBottom: 4 }}>
-          <span>uptime</span>
-          <span style={{ color: "var(--fg-2)" }}>{host.uptime}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>last deploy</span>
-          <span style={{ color: "var(--fg-2)" }}>{host.lastDeploy}</span>
+        <div style={{ fontSize: 11.5, color: "var(--fg-3)", marginTop: 4 }}>
+          declared in host_aliases
         </div>
       </div>
       <div style={{ borderTop: "1px solid var(--border-soft)" }}>
@@ -201,24 +168,55 @@ function HostCard({ host }: { host: Host }) {
         >
           services
         </div>
-        <ul style={{ listStyle: "none", margin: 0, padding: "0 14px 12px" }}>
-          {host.services.map((svc) => (
-            <li
-              key={svc.name}
-              className="flex items-center gap-2"
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: 12,
-                color: "var(--fg-2)",
-                padding: "3px 0",
-              }}
-            >
-              <span className={`ds-dot ds-dot--${svc.state}`} aria-hidden />
-              {svc.name}
-            </li>
-          ))}
-        </ul>
+        {services.length === 0 ? (
+          <div
+            style={{
+              padding: "0 14px 12px",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11.5,
+              color: "var(--fg-4)",
+            }}
+          >
+            no per-host service reporting yet
+          </div>
+        ) : (
+          <ul style={{ listStyle: "none", margin: 0, padding: "0 14px 12px" }}>
+            {services.map((svc) => (
+              <li
+                key={svc.name}
+                className="flex items-center gap-2"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 12,
+                  color: "var(--fg-2)",
+                  padding: "3px 0",
+                }}
+              >
+                <span className={`ds-dot ds-dot--${svc.state}`} aria-hidden />
+                {svc.name}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
+    </div>
+  );
+}
+
+function EmptyCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        background: "var(--canvas-1)",
+        border: "1px solid var(--border-soft)",
+        borderRadius: 8,
+        padding: 20,
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        color: "var(--fg-3)",
+      }}
+    >
+      {children}
     </div>
   );
 }

@@ -1,15 +1,30 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 
-import { useSentinelTriggerDream } from "../../sentinel/hooks";
+import {
+  useSentinelDreamRuns,
+  useSentinelEvalRuns,
+  useSentinelLangfuseStatus,
+  useSentinelRunEval,
+  useSentinelSyncLangfuse,
+  useSentinelTriggerDream,
+} from "../../sentinel/hooks";
+import type { SentinelEvalRun } from "../../sentinel/api";
 import { PageCrumb, PageHeader, Tabs, type DotState, type TabOption } from "./shared";
 
 /**
- * Agents — evals, dream, sessions browser, fine-tune, langfuse.
- * Data is mocked for this pass; the domain is sourced from the CLI reference
- * and docs/design/2026-04-18-frontend-design-brief.md §7.4.
+ * Agents — evals, dream, sessions browser, fine-tune, langfuse. Wired to
+ *   /v1/evals/runs           (read)
+ *   /v1/evals/run            (action)
+ *   /v1/dream/runs           (read — latest snapshot)
+ *   /v1/admin/trigger-dream  (action)
+ *   /v1/langfuse/status      (read)
+ *   /v1/langfuse/sync-prompts (action)
+ * Fine-tune + historical sessions remain mocked (no endpoints yet).
  */
 export function AgentsView() {
   const [tab, setTab] = useState<TabKey>("evals");
+  const evalRuns = useSentinelEvalRuns(30);
 
   return (
     <div className="overflow-auto">
@@ -21,7 +36,19 @@ export function AgentsView() {
           subtitle="Evals, nightly dream, session history, fine-tuning, and the Langfuse bridge."
         />
 
-        <Tabs value={tab} onChange={(v) => setTab(v as TabKey)} options={TABS} />
+        <Tabs
+          value={tab}
+          onChange={(v) => setTab(v as TabKey)}
+          options={
+            [
+              { key: "evals", label: "Evals", count: evalRuns.data?.runs.length ?? 0 },
+              { key: "dream", label: "Dream" },
+              { key: "sessions", label: "Sessions" },
+              { key: "finetune", label: "Fine-tune" },
+              { key: "langfuse", label: "Langfuse" },
+            ] satisfies TabOption[]
+          }
+        />
 
         {tab === "evals" ? <EvalsTab /> : null}
         {tab === "dream" ? <DreamTab /> : null}
@@ -41,159 +68,177 @@ const pageStyle: CSSProperties = {
 
 type TabKey = "evals" | "dream" | "sessions" | "finetune" | "langfuse";
 
-const TABS: readonly TabOption[] = [
-  { key: "evals", label: "Evals", count: 16 },
-  { key: "dream", label: "Dream" },
-  { key: "sessions", label: "Sessions" },
-  { key: "finetune", label: "Fine-tune", count: 3 },
-  { key: "langfuse", label: "Langfuse" },
-];
-
 // ---- Evals ----------------------------------------------------------------
 
-interface EvalRun {
-  suite: string;
-  track: "grounding" | "dataset" | "online";
-  when: string;
-  duration: string;
-  passRate: string;
-  delta: string;
-  state: DotState;
-}
-
-const EVAL_RUNS: readonly EvalRun[] = [
-  {
-    suite: "beardy-tool-routing",
-    track: "dataset",
-    when: "2026-04-09",
-    duration: "11m",
-    passRate: "89.4%",
-    delta: "stale · 9d",
-    state: "degraded",
-  },
-  {
-    suite: "grounding-faithfulness",
-    track: "grounding",
-    when: "2026-04-17 22:01",
-    duration: "12m",
-    passRate: "100%",
-    delta: "+0.0%",
-    state: "healthy",
-  },
-  {
-    suite: "grounding-contradiction",
-    track: "grounding",
-    when: "2026-04-17 22:14",
-    duration: "9m",
-    passRate: "95%",
-    delta: "+5%",
-    state: "healthy",
-  },
-  {
-    suite: "grounding-scope",
-    track: "grounding",
-    when: "2026-04-17 22:23",
-    duration: "7m",
-    passRate: "100%",
-    delta: "+0.0%",
-    state: "healthy",
-  },
-  {
-    suite: "grounding-personality",
-    track: "grounding",
-    when: "2026-04-17 22:30",
-    duration: "6m",
-    passRate: "100%",
-    delta: "+2%",
-    state: "healthy",
-  },
-  {
-    suite: "beardy-safety",
-    track: "dataset",
-    when: "2026-04-15 14:02",
-    duration: "4m",
-    passRate: "100%",
-    delta: "+0.0%",
-    state: "healthy",
-  },
-  {
-    suite: "beardy-general-qa",
-    track: "dataset",
-    when: "2026-04-14 09:11",
-    duration: "8m",
-    passRate: "94.1%",
-    delta: "-0.6%",
-    state: "degraded",
-  },
-  {
-    suite: "response-quality (online)",
-    track: "online",
-    when: "continuous",
-    duration: "—",
-    passRate: "87/90",
-    delta: "—",
-    state: "healthy",
-  },
-];
-
 function EvalsTab() {
+  const runs = useSentinelEvalRuns(50);
+  const runEval = useSentinelRunEval();
+  const rows = runs.data?.runs ?? [];
+
   return (
-    <Card>
-      <TableHead
-        columns={["suite", "track", "when", "duration", "pass rate", "Δ"]}
-        widths={["1.4fr", "100px", "160px", "80px", "100px", "100px"]}
-      />
-      {EVAL_RUNS.map((run, i) => (
-        <div
-          key={run.suite}
-          className="grid items-center gap-3"
+    <div>
+      <div className="mb-3 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => runEval.mutate({ grounding: true, quick: true })}
+          disabled={runEval.isPending}
+          className="flex cursor-pointer items-center gap-2 border-0"
           style={{
-            gridTemplateColumns: "1.4fr 100px 160px 80px 100px 100px",
-            padding: "10px 14px",
-            borderBottom: i === EVAL_RUNS.length - 1 ? "none" : "1px solid var(--border-soft)",
+            padding: "7px 14px",
+            borderRadius: 5,
+            background: runEval.isPending ? "var(--canvas-3)" : "var(--ember-400)",
+            color: runEval.isPending ? "var(--fg-3)" : "var(--fg-on-accent)",
+            fontSize: 12.5,
+            fontWeight: 500,
+          }}
+        >
+          {runEval.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
+          {runEval.isPending ? "Running grounding…" : "Run grounding (quick)"}
+        </button>
+        <button
+          type="button"
+          onClick={() => runEval.mutate({ memory: true })}
+          disabled={runEval.isPending}
+          className="cursor-pointer border-0"
+          style={{
+            padding: "7px 14px",
+            borderRadius: 5,
+            background: "var(--canvas-3)",
+            color: "var(--fg-1)",
+            border: "1px solid var(--border-soft)",
             fontSize: 12.5,
           }}
         >
-          <span
-            className="flex items-center gap-[6px]"
-            style={{ fontFamily: "var(--font-mono)", color: "var(--fg-1)" }}
-          >
-            <span className={`ds-dot ds-dot--${run.state}`} aria-hidden />
-            {run.suite}
-          </span>
-          <TagPill>{run.track}</TagPill>
-          <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-3)", fontSize: 11.5 }}>
-            {run.when}
-          </span>
-          <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-3)" }}>
-            {run.duration}
-          </span>
-          <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-1)" }}>
-            {run.passRate}
-          </span>
+          Run memory evals
+        </button>
+        <button
+          type="button"
+          onClick={() => runEval.mutate({})}
+          disabled={runEval.isPending}
+          className="cursor-pointer border-0"
+          style={{
+            padding: "7px 14px",
+            borderRadius: 5,
+            background: "var(--canvas-3)",
+            color: "var(--fg-1)",
+            border: "1px solid var(--border-soft)",
+            fontSize: 12.5,
+          }}
+        >
+          Run all datasets
+        </button>
+        {runEval.isError ? (
           <span
             style={{
+              fontSize: 11.5,
+              color: "var(--state-down-fg)",
               fontFamily: "var(--font-mono)",
-              color: run.delta.includes("-") ? "var(--state-degraded-fg)" : "var(--fg-3)",
             }}
           >
-            {run.delta}
+            failed — {(runEval.error as Error).message}
           </span>
-        </div>
-      ))}
-    </Card>
+        ) : null}
+      </div>
+      {rows.length === 0 ? (
+        <EmptyCard>
+          {runs.isError ? "API offline." : "No eval artefacts found in benchmarks/results/."}
+        </EmptyCard>
+      ) : (
+        <Card>
+          <TableHead
+            columns={["when", "file", "suite", "pass rate", "cases"]}
+            widths={["180px", "1.4fr", "1fr", "120px", "140px"]}
+          />
+          {rows.map((run, i) => (
+            <EvalRow key={run.file} run={run} last={i === rows.length - 1} />
+          ))}
+        </Card>
+      )}
+    </div>
   );
+}
+
+function EvalRow({ run, last }: { run: SentinelEvalRun; last: boolean }) {
+  const passRate =
+    typeof run.pass_rate === "number"
+      ? `${(run.pass_rate * 100).toFixed(1)}%`
+      : typeof run.cases_total === "number" && typeof run.cases_passed === "number"
+        ? `${((run.cases_passed / Math.max(1, run.cases_total)) * 100).toFixed(1)}%`
+        : "—";
+  const cases =
+    typeof run.cases_total === "number" && typeof run.cases_passed === "number"
+      ? `${run.cases_passed} / ${run.cases_total}`
+      : "—";
+  const state: DotState =
+    typeof run.pass_rate === "number"
+      ? run.pass_rate >= 0.95
+        ? "healthy"
+        : run.pass_rate >= 0.8
+          ? "degraded"
+          : "down"
+      : "unknown";
+  return (
+    <div
+      className="grid items-center gap-3"
+      style={{
+        gridTemplateColumns: "180px 1.4fr 1fr 120px 140px",
+        padding: "10px 14px",
+        borderBottom: last ? "none" : "1px solid var(--border-soft)",
+        fontSize: 12.5,
+      }}
+    >
+      <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-3)", fontSize: 11 }}>
+        {formatMtime(run.mtime)}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-mono)",
+          color: "var(--fg-1)",
+          fontSize: 11,
+          wordBreak: "break-all",
+        }}
+      >
+        {run.file}
+      </span>
+      <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-2)" }}>
+        {run.suite ?? "—"}
+      </span>
+      <span
+        className="flex items-center gap-[6px]"
+        style={{ fontFamily: "var(--font-mono)", color: "var(--fg-1)" }}
+      >
+        <span className={`ds-dot ds-dot--${state}`} aria-hidden />
+        {passRate}
+      </span>
+      <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-3)" }}>{cases}</span>
+    </div>
+  );
+}
+
+function formatMtime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d
+      .toISOString()
+      .replace("T", " ")
+      .replace(/:\d{2}\.\d+Z/, "Z");
+  } catch {
+    return iso;
+  }
 }
 
 // ---- Dream ----------------------------------------------------------------
 
 function DreamTab() {
   const dream = useSentinelTriggerDream();
+  const runs = useSentinelDreamRuns();
+  const lastRun = runs.data?.runs?.[0];
+
   const status = (() => {
     if (dream.isPending) return { label: "Running dream…", state: "busy" as const };
     if (dream.isError)
       return { label: `Failed: ${(dream.error as Error).message}`, state: "down" as const };
-    if (dream.isSuccess) return { label: "Last run: success", state: "healthy" as const };
+    if (dream.isSuccess) return { label: "Triggered", state: "healthy" as const };
     return null;
   })();
 
@@ -209,10 +254,9 @@ function DreamTab() {
             color: "var(--fg-2)",
           }}
         >
-          <KV label="scheduled" value="01:00 phoenix · in 16h 42m" />
-          <KV label="orchestrator" value="gemma-4-26b-a4b" />
-          <KV label="expected duration" value="8–12 min" />
-          <KV label="sessions in queue" value="14" />
+          <KV label="scheduled" value="01:00 phoenix" />
+          <KV label="orchestrator (dream role)" value="gemma-4-26b-a4b (config-driven)" />
+          <KV label="expected duration" value="8–12 min on a healthy stack" />
         </div>
         <div
           className="flex items-center gap-3"
@@ -251,7 +295,7 @@ function DreamTab() {
         </div>
       </Card>
       <Card>
-        <CardHead>Last run · 2026-04-18 08:00 UTC</CardHead>
+        <CardHead>Last run</CardHead>
         <div
           style={{
             padding: 16,
@@ -261,28 +305,36 @@ function DreamTab() {
             lineHeight: 1.7,
           }}
         >
-          <div>
-            <span style={{ color: "var(--fg-3)" }}>03:12</span> swap · qwen3.5-122b → gemma-4-26b
-          </div>
-          <div>
-            <span style={{ color: "var(--fg-3)" }}>03:13</span> reviewed · 14 sessions
-          </div>
-          <div>
-            <span style={{ color: "var(--fg-3)" }}>03:19</span> extracted · 27 insights
-          </div>
-          <div>
-            <span style={{ color: "var(--fg-3)" }}>03:22</span> pruned · 312 stale facts
-          </div>
-          <div>
-            <span style={{ color: "var(--fg-3)" }}>03:24</span> posted · #dreamstate-report
-          </div>
-          <div>
-            <span style={{ color: "var(--fg-3)" }}>03:26</span> restore · gemma → qwen3.5-122b
-          </div>
+          {runs.isError ? (
+            <span style={{ color: "var(--state-down-fg)" }}>
+              API offline — can't read run/dream-last-run.json
+            </span>
+          ) : !lastRun ? (
+            <span style={{ color: "var(--fg-4)" }}>No runs recorded yet.</span>
+          ) : (
+            <>
+              <KV label="at" value={String(lastRun.last_run ?? "—")} />
+              <KV label="duration" value={formatDuration(lastRun.duration_seconds)} />
+              <KV label="sessions reviewed" value={String(lastRun.sessions_reviewed ?? 0)} />
+              <KV label="episodes ingested" value={String(lastRun.episodes_ingested ?? 0)} />
+              <KV label="impulses stored" value={String(lastRun.impulses_stored ?? 0)} />
+              <KV label="facts pruned" value={String(lastRun.facts_pruned ?? 0)} />
+              {Array.isArray(lastRun.errors) && lastRun.errors.length > 0 ? (
+                <KV label="errors" value={lastRun.errors.join("; ")} />
+              ) : null}
+            </>
+          )}
         </div>
       </Card>
     </div>
   );
+}
+
+function formatDuration(seconds?: number): string {
+  if (!seconds || seconds <= 0) return "—";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 }
 
 function KV({ label, value }: { label: string; value: string }) {
@@ -291,19 +343,19 @@ function KV({ label, value }: { label: string; value: string }) {
       className="flex items-baseline gap-3"
       style={{ padding: "4px 0", borderBottom: "1px dashed var(--border-soft)" }}
     >
-      <span style={{ color: "var(--fg-3)", fontSize: 11, width: 140 }}>{label}</span>
-      <span style={{ color: "var(--fg-1)", fontSize: 13 }}>{value}</span>
+      <span style={{ color: "var(--fg-3)", fontSize: 11, width: 180 }}>{label}</span>
+      <span style={{ color: "var(--fg-1)", fontSize: 13, wordBreak: "break-all" }}>{value}</span>
     </div>
   );
 }
 
-// ---- Sessions (browser hint) ---------------------------------------------
+// ---- Sessions (placeholder) ----------------------------------------------
 
 function SessionsTab() {
   return (
     <Card>
       <div style={{ padding: 18, fontSize: 13, color: "var(--fg-2)" }}>
-        The live Sessions surface lives at{" "}
+        Live sessions list (harness sessions) lives at{" "}
         <span
           style={{
             fontFamily: "var(--font-mono)",
@@ -313,10 +365,10 @@ function SessionsTab() {
             borderRadius: 3,
           }}
         >
-          / (Sessions)
+          /sessions
         </span>
-        . This tab is for <em>browsing historical</em> sessions from the vault — search, filter by
-        model, by tool calls, by contains-error. Planned for a later pass; the data endpoint is{" "}
+        . This tab is for browsing historical sentinel-vault sessions — search, filter by model,
+        filter by tool calls. Not wired yet; the source data comes from{" "}
         <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-1)" }}>
           GET /v1/sessions
         </span>
@@ -326,83 +378,27 @@ function SessionsTab() {
   );
 }
 
-// ---- Fine-tune ------------------------------------------------------------
-
-const FT_DATASETS = [
-  { name: "beardy-sft-v3", examples: 2481, updated: "2 days ago", kind: "SFT" },
-  { name: "tool-routing-classifier", examples: 841, updated: "5 days ago", kind: "classifier" },
-  { name: "skill-selection-classifier", examples: 512, updated: "1w ago", kind: "classifier" },
-] as const;
-
-const FT_RECIPES = [
-  { name: "beardy-sft-lora-r16", base: "qwen3.5-0.8b", epochs: 3, lr: "1e-4", status: "ready" },
-  { name: "tool-routing-probe", base: "qwen3.5-0.8b", epochs: 2, lr: "5e-4", status: "ready" },
-] as const;
+// ---- Fine-tune (placeholder — no endpoints yet) --------------------------
 
 function FineTuneTab() {
   return (
-    <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
-      <div>
-        <div style={sectionHeadStyle}>Datasets</div>
-        <Card>
-          {FT_DATASETS.map((d, i) => (
-            <div
-              key={d.name}
-              className="flex items-center gap-3"
-              style={{
-                padding: "10px 14px",
-                borderBottom:
-                  i === FT_DATASETS.length - 1 ? "none" : "1px solid var(--border-soft)",
-                fontSize: 12.5,
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-1)", flex: 1 }}>
-                {d.name}
-              </span>
-              <TagPill>{d.kind}</TagPill>
-              <span
-                style={{ fontFamily: "var(--font-mono)", color: "var(--fg-3)", fontSize: 11.5 }}
-              >
-                {d.examples.toLocaleString()} rows
-              </span>
-              <span style={{ color: "var(--fg-3)", fontSize: 11, minWidth: 80 }}>{d.updated}</span>
-            </div>
-          ))}
-        </Card>
-      </div>
-      <div>
-        <div style={sectionHeadStyle}>Recipes</div>
-        <Card>
-          {FT_RECIPES.map((r, i) => (
-            <div
-              key={r.name}
-              className="flex items-center gap-3"
-              style={{
-                padding: "10px 14px",
-                borderBottom: i === FT_RECIPES.length - 1 ? "none" : "1px solid var(--border-soft)",
-                fontSize: 12.5,
-              }}
-            >
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-1)", flex: 1 }}>
-                {r.name}
-              </span>
-              <span
-                style={{ fontFamily: "var(--font-mono)", color: "var(--fg-3)", fontSize: 11.5 }}
-              >
-                {r.base} · {r.epochs}ep · lr {r.lr}
-              </span>
-              <TagPill>{r.status}</TagPill>
-            </div>
-          ))}
-        </Card>
-      </div>
-    </div>
+    <EmptyCard>
+      Fine-tune datasets and recipes are CLI-only today (`sentinel finetune …`). Web surface lands
+      after the /v1/finetune/* endpoints.
+    </EmptyCard>
   );
 }
 
 // ---- Langfuse -------------------------------------------------------------
 
 function LangfuseTab() {
+  const status = useSentinelLangfuseStatus();
+  const sync = useSentinelSyncLangfuse();
+  const st = status.data;
+
+  const reachableState: DotState =
+    st?.reachable === true ? "healthy" : status.isError || st?.detail ? "down" : "unknown";
+
   return (
     <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
       <Card>
@@ -415,10 +411,25 @@ function LangfuseTab() {
             color: "var(--fg-2)",
           }}
         >
-          <KV label="endpoint" value="http://192.168.1.142:3100" />
-          <KV label="auth" value="connected as beardai" />
-          <KV label="traces (24h)" value="1,204" />
-          <KV label="online evaluators" value="response-quality · instruction-following" />
+          <KV label="enabled" value={st?.enabled ? "yes" : "no"} />
+          <KV label="endpoint" value={st?.base_url ?? "—"} />
+          <div
+            className="flex items-baseline gap-3"
+            style={{ padding: "4px 0", borderBottom: "1px dashed var(--border-soft)" }}
+          >
+            <span style={{ color: "var(--fg-3)", fontSize: 11, width: 180 }}>reachable</span>
+            <span
+              className="flex items-center gap-[6px]"
+              style={{ color: "var(--fg-1)", fontSize: 13 }}
+            >
+              <span className={`ds-dot ds-dot--${reachableState}`} aria-hidden />
+              {st?.reachable ? "yes" : (st?.detail ?? "no")}
+            </span>
+          </div>
+          <KV
+            label="latency"
+            value={typeof st?.latency_ms === "number" ? `${st.latency_ms} ms` : "—"}
+          />
         </div>
       </Card>
       <Card>
@@ -432,25 +443,36 @@ function LangfuseTab() {
             lineHeight: 1.7,
           }}
         >
-          <div>✓ agents/orchestrator/AGENT.md</div>
-          <div>✓ agents/orchestrator/SOUL.md</div>
-          <div>✓ agents/orchestrator/skills/ (12 skills)</div>
-          <div style={{ color: "var(--fg-3)", marginTop: 10 }}>last sync · 3h ago</div>
+          Pushes <span style={{ color: "var(--fg-1)" }}>agents/orchestrator/*.md</span> from git
+          into the Langfuse prompt library.
+          {sync.isSuccess ? (
+            <div style={{ marginTop: 8, color: "var(--state-healthy-fg)" }}>
+              {sync.data?.message ?? "sync ok"}
+            </div>
+          ) : null}
+          {sync.isError ? (
+            <div style={{ marginTop: 8, color: "var(--state-down-fg)" }}>
+              failed — {(sync.error as Error).message}
+            </div>
+          ) : null}
         </div>
         <div style={{ borderTop: "1px solid var(--border-soft)", padding: "10px 14px" }}>
           <button
             type="button"
-            className="cursor-pointer border-0"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+            className="flex cursor-pointer items-center gap-2 border-0"
             style={{
               padding: "6px 12px",
               borderRadius: 5,
-              background: "var(--canvas-3)",
+              background: sync.isPending ? "var(--canvas-2)" : "var(--canvas-3)",
               color: "var(--fg-1)",
-              fontSize: 12,
               border: "1px solid var(--border-default)",
+              fontSize: 12,
             }}
           >
-            Sync now
+            {sync.isPending ? <Loader2 size={12} className="animate-spin" /> : null}
+            {sync.isPending ? "Syncing…" : "Sync now"}
           </button>
         </div>
       </Card>
@@ -459,16 +481,6 @@ function LangfuseTab() {
 }
 
 // ---- Local shared bits ----------------------------------------------------
-
-const sectionHeadStyle: CSSProperties = {
-  fontFamily: "var(--font-display)",
-  fontSize: 13,
-  fontWeight: 600,
-  color: "var(--fg-2)",
-  letterSpacing: "0.02em",
-  textTransform: "uppercase",
-  margin: "4px 0 12px",
-};
 
 function Card({ children }: { children: ReactNode }) {
   return (
@@ -501,6 +513,24 @@ function CardHead({ children }: { children: ReactNode }) {
   );
 }
 
+function EmptyCard({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        background: "var(--canvas-1)",
+        border: "1px solid var(--border-soft)",
+        borderRadius: 8,
+        padding: 20,
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        color: "var(--fg-3)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function TableHead({ columns, widths }: { columns: readonly string[]; widths: readonly string[] }) {
   return (
     <div
@@ -521,22 +551,5 @@ function TableHead({ columns, widths }: { columns: readonly string[]; widths: re
         <span key={col}>{col}</span>
       ))}
     </div>
-  );
-}
-
-function TagPill({ children }: { children: ReactNode }) {
-  return (
-    <span
-      style={{
-        fontFamily: "var(--font-mono)",
-        fontSize: 10.5,
-        padding: "2px 7px",
-        borderRadius: 3,
-        background: "var(--canvas-3)",
-        color: "var(--fg-3)",
-      }}
-    >
-      {children}
-    </span>
   );
 }
