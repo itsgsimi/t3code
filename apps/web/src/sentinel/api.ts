@@ -242,6 +242,57 @@ export interface SentinelModelsPresets {
 export function fetchModelsRegistry(): Promise<SentinelModelsRegistry> {
   return get<SentinelModelsRegistry>("/v1/models/registry");
 }
+
+export interface RegistryCrudAck {
+  status: string;
+  key?: string;
+  entry?: Record<string, unknown>;
+  message?: string;
+}
+
+export function createRegistryEntry(
+  key: string,
+  entry: Record<string, unknown>,
+): Promise<RegistryCrudAck> {
+  return post<RegistryCrudAck>("/v1/models/registry", { key, entry });
+}
+
+export async function updateRegistryEntry(
+  key: string,
+  entry: Record<string, unknown>,
+): Promise<RegistryCrudAck> {
+  const res = await fetch(`${BASE_URL}/v1/models/registry/${encodeURIComponent(key)}`, {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ entry }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new SentinelApiError(
+      `PATCH /v1/models/registry/${key} → ${res.status} ${res.statusText} ${text}`,
+      res.status,
+    );
+  }
+  return (await res.json()) as RegistryCrudAck;
+}
+
+export async function deleteRegistryEntry(key: string): Promise<RegistryCrudAck> {
+  const res = await fetch(`${BASE_URL}/v1/models/registry/${encodeURIComponent(key)}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new SentinelApiError(
+      `DELETE /v1/models/registry/${key} → ${res.status} ${res.statusText} ${text}`,
+      res.status,
+    );
+  }
+  return (await res.json()) as RegistryCrudAck;
+}
 export function fetchModelsRoles(): Promise<SentinelModelsRoles> {
   return get<SentinelModelsRoles>("/v1/models/roles");
 }

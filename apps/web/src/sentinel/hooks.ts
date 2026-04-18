@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   applyPreset,
+  createRegistryEntry,
+  deleteRegistryEntry,
   fetchBenchRuns,
   fetchConfigSection,
   fetchConfigSections,
@@ -24,6 +26,7 @@ import {
   syncLangfusePrompts,
   triggerBriefing,
   triggerDream,
+  updateRegistryEntry,
   type BenchRunInput,
   type EvalRunInput,
   type SentinelAgentStatus,
@@ -154,6 +157,40 @@ export function useApplyPreset() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["sentinel", "health"] });
       void qc.invalidateQueries({ queryKey: ["sentinel", "agent", "status"] });
+      void qc.invalidateQueries({ queryKey: ["sentinel", "models", "roles"] });
+    },
+  });
+}
+
+export function useCreateRegistryEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, entry }: { key: string; entry: Record<string, unknown> }) =>
+      createRegistryEntry(key, entry),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["sentinel", "models", "registry"] });
+    },
+  });
+}
+
+export function useUpdateRegistryEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, entry }: { key: string; entry: Record<string, unknown> }) =>
+      updateRegistryEntry(key, entry),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["sentinel", "models", "registry"] });
+      void qc.invalidateQueries({ queryKey: ["sentinel", "models", "roles"] });
+    },
+  });
+}
+
+export function useDeleteRegistryEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (key: string) => deleteRegistryEntry(key),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["sentinel", "models", "registry"] });
       void qc.invalidateQueries({ queryKey: ["sentinel", "models", "roles"] });
     },
   });

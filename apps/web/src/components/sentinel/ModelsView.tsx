@@ -1,8 +1,9 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRightLeft, Loader2, TerminalSquare } from "lucide-react";
+import { ArrowRightLeft, Loader2, Pencil, Plus, TerminalSquare, Trash2 } from "lucide-react";
 
 import {
   useApplyPreset,
+  useDeleteRegistryEntry,
   useSentinelBenchRuns,
   useSentinelModelSwap,
   useSentinelModelsLoaded,
@@ -11,6 +12,7 @@ import {
   useSentinelModelsRoles,
 } from "../../sentinel/hooks";
 import type { SentinelLoadedRole, SentinelRole } from "../../sentinel/api";
+import { ModelEditor } from "./ModelEditor";
 import { PageCrumb, PageHeader, Tabs, type TabOption } from "./shared";
 
 /**
@@ -329,21 +331,83 @@ function RoleRow({
 
 // ---- Registry tab ---------------------------------------------------------
 
+type EditorState =
+  | { mode: "closed" }
+  | { mode: "add" }
+  | { mode: "edit"; key: string; entry: Record<string, unknown> };
+
 function RegistryTab({ entries }: { entries: ReadonlyArray<[string, Record<string, unknown>]> }) {
-  if (entries.length === 0) {
-    return <EmptyCard>Loading model registry…</EmptyCard>;
-  }
+  const [editor, setEditor] = useState<EditorState>({ mode: "closed" });
+
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-        gap: 12,
-      }}
-    >
-      {entries.map(([key, entry]) => (
-        <RegistryCard key={key} registryKey={key} entry={entry} />
-      ))}
+    <div>
+      <div className="mb-3 flex items-center gap-3">
+        <span
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--fg-2)",
+            textTransform: "uppercase",
+            letterSpacing: "0.02em",
+          }}
+        >
+          Registry
+        </span>
+        <span style={{ fontSize: 11, color: "var(--fg-4)", fontFamily: "var(--font-mono)" }}>
+          config.yaml · model_registry
+        </span>
+        <div style={{ flex: 1 }} />
+        <button
+          type="button"
+          onClick={() => setEditor({ mode: "add" })}
+          className="flex cursor-pointer items-center gap-2 border-0"
+          style={{
+            padding: "6px 12px",
+            borderRadius: 5,
+            background: "var(--ember-400)",
+            color: "var(--fg-on-accent)",
+            fontSize: 12.5,
+            fontWeight: 500,
+          }}
+        >
+          <Plus size={14} />
+          Add model
+        </button>
+      </div>
+
+      {entries.length === 0 ? (
+        <EmptyCard>Loading model registry…</EmptyCard>
+      ) : (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+            gap: 12,
+          }}
+        >
+          {entries.map(([key, entry]) => (
+            <RegistryCard
+              key={key}
+              registryKey={key}
+              entry={entry}
+              onEdit={() => setEditor({ mode: "edit", key, entry })}
+            />
+          ))}
+        </div>
+      )}
+
+      {editor.mode === "add" ? (
+        <ModelEditor mode="add" onClose={() => setEditor({ mode: "closed" })} />
+      ) : null}
+      {editor.mode === "edit" ? (
+        <ModelEditor
+          mode="edit"
+          initialKey={editor.key}
+          initialEntry={editor.entry}
+          onClose={() => setEditor({ mode: "closed" })}
+        />
+      ) : null}
     </div>
   );
 }
@@ -351,9 +415,11 @@ function RegistryTab({ entries }: { entries: ReadonlyArray<[string, Record<strin
 function RegistryCard({
   registryKey,
   entry,
+  onEdit,
 }: {
   registryKey: string;
   entry: Record<string, unknown>;
+  onEdit: () => void;
 }) {
   const name = typeof entry.name === "string" ? entry.name : registryKey;
   const file = typeof entry.file === "string" ? entry.file : "—";
@@ -361,6 +427,8 @@ function RegistryCard({
   const ctx =
     typeof entry.context_length === "number" ? `${Math.round(entry.context_length / 1000)}k` : "—";
   const provider = typeof entry.provider === "string" ? entry.provider : "—";
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const del = useDeleteRegistryEntry();
   return (
     <div
       style={{
@@ -371,9 +439,22 @@ function RegistryCard({
       }}
     >
       <div className="mb-2 flex items-center gap-2">
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--fg-1)" }}>
+        <span
+          style={{ fontFamily: "var(--font-mono)", fontSize: 12.5, color: "var(--fg-1)", flex: 1 }}
+        >
           {registryKey}
         </span>
+        <IconAction label="Edit" onClick={onEdit}>
+          <Pencil size={12} />
+        </IconAction>
+        <IconAction
+          label="Delete"
+          variant="danger"
+          onClick={() => setConfirmDelete(true)}
+          disabled={del.isPending}
+        >
+          <Trash2 size={12} />
+        </IconAction>
       </div>
       <div style={{ fontSize: 13, color: "var(--fg-2)", marginBottom: 4 }}>{name}</div>
       <div
@@ -400,7 +481,99 @@ function RegistryCard({
         <span>{ctx}</span>
         <span>{provider}</span>
       </div>
+      {confirmDelete ? (
+        <div
+          style={{
+            marginTop: 10,
+            padding: 10,
+            background: "var(--state-down-bg)",
+            border: "1px solid var(--state-down-bg)",
+            borderRadius: 6,
+            fontSize: 11.5,
+            color: "var(--state-down-fg)",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          <div style={{ marginBottom: 8 }}>
+            Delete <span style={{ color: "var(--fg-1)" }}>{registryKey}</span> from model_registry?
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(false)}
+              className="cursor-pointer border-0"
+              style={{
+                padding: "4px 10px",
+                borderRadius: 4,
+                background: "var(--canvas-3)",
+                color: "var(--fg-1)",
+                border: "1px solid var(--border-soft)",
+                fontSize: 11.5,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                del.mutate(registryKey, {
+                  onSuccess: () => setConfirmDelete(false),
+                });
+              }}
+              disabled={del.isPending}
+              className="flex cursor-pointer items-center gap-1 border-0"
+              style={{
+                padding: "4px 10px",
+                borderRadius: 4,
+                background: "var(--state-down)",
+                color: "oklch(98% 0 0)",
+                fontSize: 11.5,
+              }}
+            >
+              {del.isPending ? <Loader2 size={10} className="animate-spin" /> : null}
+              Delete
+            </button>
+            {del.isError ? (
+              <span style={{ fontSize: 10.5 }}>{(del.error as Error).message}</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function IconAction({
+  label,
+  onClick,
+  children,
+  variant,
+  disabled,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+  variant?: "danger" | undefined;
+  disabled?: boolean | undefined;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="cursor-pointer border-0"
+      style={{
+        padding: 4,
+        background: "transparent",
+        color: variant === "danger" ? "var(--state-down-fg)" : "var(--fg-3)",
+        borderRadius: 3,
+        cursor: disabled ? "default" : "pointer",
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -617,7 +790,7 @@ function TableHead({
   );
 }
 
-function Pill({
+function _Pill({
   children,
   state = "healthy",
 }: {
