@@ -1,21 +1,20 @@
 import { useEffect, type ReactNode } from "react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 
-import ThreadSidebar from "./Sidebar";
-import { Sidebar, SidebarProvider, SidebarRail } from "./ui/sidebar";
 import { SentinelTopBar } from "./sentinel/SentinelTopBar";
 import { SentinelRail, isSessionsRoute } from "./sentinel/SentinelRail";
 import { BeardyDrawer } from "./sentinel/BeardyDrawer";
 import { useBeardyDrawerStore } from "../sentinel/beardyDrawerStore";
 
-const THREAD_SIDEBAR_WIDTH_STORAGE_KEY = "chat_thread_sidebar_width";
-const THREAD_SIDEBAR_MIN_WIDTH = 13 * 16;
-const THREAD_MAIN_CONTENT_MIN_WIDTH = 40 * 16;
-
+/**
+ * Sentinel app shell. The thread sidebar is intentionally NOT at this level
+ * any more — it lives inside the Sessions route layout
+ * (`routes/_chat._sessions.tsx`). Home, Stack, Agents, etc. render straight
+ * into the outlet without a contextual sidebar.
+ */
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const pathname = useLocation({ select: (location) => location.pathname });
-  const showThreadSidebar = isSessionsRoute(pathname);
   const setAutoCollapsed = useBeardyDrawerStore((state) => state.setAutoCollapsed);
 
   useEffect(() => {
@@ -34,37 +33,18 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     };
   }, [navigate]);
 
-  // Sessions is dense — auto-collapse Beardy when entering, auto-restore when
-  // leaving (unless the user explicitly toggled while in Sessions). Matches
-  // the design brief's "two surfaces, two voices" rule.
+  // Sessions is visually dense — auto-collapse Beardy when entering, auto-
+  // restore on leaving (unless the user explicitly toggled while inside).
   useEffect(() => {
-    setAutoCollapsed(showThreadSidebar);
-  }, [showThreadSidebar, setAutoCollapsed]);
+    setAutoCollapsed(isSessionsRoute(pathname));
+  }, [pathname, setAutoCollapsed]);
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
       <SentinelTopBar />
       <div className="flex min-h-0 flex-1">
         <SentinelRail />
-        <SidebarProvider defaultOpen>
-          {showThreadSidebar ? (
-            <Sidebar
-              side="left"
-              collapsible="offcanvas"
-              className="border-r border-border bg-card text-foreground"
-              resizable={{
-                minWidth: THREAD_SIDEBAR_MIN_WIDTH,
-                shouldAcceptWidth: ({ nextWidth, wrapper }) =>
-                  wrapper.clientWidth - nextWidth >= THREAD_MAIN_CONTENT_MIN_WIDTH,
-                storageKey: THREAD_SIDEBAR_WIDTH_STORAGE_KEY,
-              }}
-            >
-              <ThreadSidebar />
-              <SidebarRail />
-            </Sidebar>
-          ) : null}
-          <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-        </SidebarProvider>
+        <div className="flex min-w-0 flex-1">{children}</div>
         <BeardyDrawer />
       </div>
     </div>

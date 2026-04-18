@@ -274,7 +274,7 @@ function ChatThreadRouteView() {
   );
 }
 
-export const Route = createFileRoute("/_chat/$environmentId/$threadId")({
+export const Route = createFileRoute("/_chat/_sessions/$environmentId/$threadId")({
   validateSearch: (search) => parseDiffRouteSearch(search),
   search: {
     middlewares: [retainSearchParams<DiffRouteSearch>(["diff"])],
