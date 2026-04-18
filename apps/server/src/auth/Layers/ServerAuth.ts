@@ -92,7 +92,24 @@ export const makeServerAuth = Effect.gen(function* () {
       ),
     );
 
+  const authBypassed =
+    typeof process !== "undefined" &&
+    (process.env?.["SENTINEL_DISABLE_AUTH"] === "1" ||
+      process.env?.["SENTINEL_DISABLE_AUTH"]?.toLowerCase?.() === "true");
+
   const authenticateRequest = (request: HttpServerRequest.HttpServerRequest) => {
+    if (authBypassed) {
+      // Sentinel runs LAN-only, single-user. When SENTINEL_DISABLE_AUTH is
+      // set, short-circuit to an always-authenticated owner session so the
+      // client doesn't need a paired cookie. NEVER enable in production
+      // deployments that are reachable from anywhere but loopback.
+      return Effect.succeed({
+        sessionId: "sentinel-local" as AuthenticatedSession["sessionId"],
+        subject: "sentinel-local",
+        method: "bearer-session-token" as AuthenticatedSession["method"],
+        role: "owner" as AuthenticatedSession["role"],
+      } satisfies AuthenticatedSession);
+    }
     const cookieToken = request.cookies[sessions.cookieName];
     const bearerToken = parseBearerToken(request);
     const credential = cookieToken ?? bearerToken;
