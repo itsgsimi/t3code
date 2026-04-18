@@ -92,9 +92,7 @@ function getDesktopBootstrapCredential(): string | null {
 
 export async function fetchSessionState(): Promise<AuthSessionState> {
   return retryTransientBootstrap(async () => {
-    const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/session"), {
-      credentials: "include",
-    });
+    const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/session"), {});
     if (!response.ok) {
       throw new BootstrapHttpError({
         message: `Failed to load server auth session state (${response.status}).`,
@@ -115,7 +113,6 @@ async function exchangeBootstrapCredential(credential: string): Promise<AuthBoot
     const payload: AuthBootstrapInput = { credential };
     const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/bootstrap"), {
       body: JSON.stringify(payload),
-      credentials: "include",
       headers: {
         "content-type": "application/json",
       },
@@ -238,7 +235,6 @@ export async function createServerPairingCredential(
   const payload: AuthCreatePairingCredentialInput = trimmedLabel ? { label: trimmedLabel } : {};
   const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/pairing-token"), {
     body: JSON.stringify(payload),
-    credentials: "include",
     headers: {
       "content-type": "application/json",
     },
@@ -255,9 +251,7 @@ export async function createServerPairingCredential(
 }
 
 export async function listServerPairingLinks(): Promise<ReadonlyArray<ServerPairingLinkRecord>> {
-  const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/pairing-links"), {
-    credentials: "include",
-  });
+  const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/pairing-links"), {});
 
   if (!response.ok) {
     throw new Error(
@@ -272,7 +266,6 @@ export async function revokeServerPairingLink(id: string): Promise<void> {
   const payload: AuthRevokePairingLinkInput = { id };
   const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/pairing-links/revoke"), {
     body: JSON.stringify(payload),
-    credentials: "include",
     headers: {
       "content-type": "application/json",
     },
@@ -289,9 +282,7 @@ export async function revokeServerPairingLink(id: string): Promise<void> {
 export async function listServerClientSessions(): Promise<
   ReadonlyArray<ServerClientSessionRecord>
 > {
-  const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/clients"), {
-    credentials: "include",
-  });
+  const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/clients"), {});
 
   if (!response.ok) {
     throw new Error(
@@ -306,7 +297,6 @@ export async function revokeServerClientSession(sessionId: AuthSessionId): Promi
   const payload: AuthRevokeClientSessionInput = { sessionId };
   const response = await fetch(resolvePrimaryEnvironmentHttpUrl("/api/auth/clients/revoke"), {
     body: JSON.stringify(payload),
-    credentials: "include",
     headers: {
       "content-type": "application/json",
     },
@@ -324,7 +314,6 @@ export async function revokeOtherServerClientSessions(): Promise<number> {
   const response = await fetch(
     resolvePrimaryEnvironmentHttpUrl("/api/auth/clients/revoke-others"),
     {
-      credentials: "include",
       method: "POST",
     },
   );
