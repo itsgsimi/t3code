@@ -1,0 +1,322 @@
+/* ==========================================================================
+   Sentinel Design System — colors + type
+   Dark-first. Dense and serious at the edges, warm and conversational at the center.
+   ========================================================================== */
+
+/* -- Webfonts (Google Fonts — Inter + JetBrains Mono + Fraunces for soul accents)
+   NOTE: Brief says "Inter / Geist / system". Inter is the safe primary.
+   We offer Inter Tight as a tighter display variant. Mono: JetBrains Mono.
+   Serif accent (Fraunces) reserved for the mascot-adjacent "soul" moments
+   (empty states, Discord briefings, Beardy quotes). Never in operational UI.
+   -- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap');
+
+:root {
+  /* ========================================================================
+     COLOR — CANVAS
+     A warm neutral charcoal. Not pure black, not blue-black. Slight warmth
+     (~2% red shift in oklch) so the mascot's oranges feel at home.
+     ======================================================================== */
+  --canvas-0: oklch(17% 0.008 55);      /* page bg, darkest */
+  --canvas-1: oklch(20% 0.009 55);      /* sidebar, rails */
+  --canvas-2: oklch(23% 0.010 55);      /* cards, panels */
+  --canvas-3: oklch(27% 0.011 55);      /* inputs, hover-raised */
+  --canvas-4: oklch(32% 0.012 55);      /* borders on raised, selected row */
+
+  /* ========================================================================
+     COLOR — FOREGROUND
+     ======================================================================== */
+  --fg-1: oklch(96% 0.010 75);          /* primary text, headings */
+  --fg-2: oklch(78% 0.015 70);          /* body, secondary */
+  --fg-3: oklch(60% 0.015 65);          /* tertiary, helper text */
+  --fg-4: oklch(45% 0.012 60);          /* disabled, placeholder */
+  --fg-on-accent: oklch(18% 0.01 55);   /* on warm accent surfaces */
+
+  /* ========================================================================
+     COLOR — BORDERS / DIVIDERS
+     ======================================================================== */
+  --border-soft: oklch(28% 0.012 55);
+  --border-default: oklch(34% 0.014 55);
+  --border-strong: oklch(44% 0.018 55);
+  --border-focus: oklch(72% 0.17 55);   /* the warm ember — our focus ring */
+
+  /* ========================================================================
+     COLOR — BRAND ACCENT (ember)
+     Derived from the mascot's fur — a warm, copper-orange.
+     Used sparingly: logo, primary CTA, focus ring, brand-only moments.
+     NOT used to communicate state (state = green/amber/red/blue/purple).
+     ======================================================================== */
+  --ember-100: oklch(96% 0.04 55);
+  --ember-200: oklch(88% 0.09 55);
+  --ember-300: oklch(80% 0.14 55);
+  --ember-400: oklch(72% 0.17 55);      /* base — primary CTA */
+  --ember-500: oklch(64% 0.19 52);      /* hover */
+  --ember-600: oklch(55% 0.20 48);      /* press */
+  --ember-700: oklch(44% 0.17 44);
+  --ember-tint: oklch(72% 0.17 55 / 0.12);  /* tinted bg for ember chips */
+
+  /* ========================================================================
+     COLOR — STATE (load-bearing, not decorative)
+     Brief §8: green=healthy, blue=busy, amber=degraded, red=down, grey=unknown,
+     plus purple for evaluating/dreaming.
+     Each state has:
+       --state-X       — the dot/border color
+       --state-X-fg    — text color safe on canvas
+       --state-X-bg    — tinted background for pills/banners (12% alpha)
+     ======================================================================== */
+
+  /* Healthy — green */
+  --state-healthy: oklch(75% 0.17 155);
+  --state-healthy-fg: oklch(82% 0.16 155);
+  --state-healthy-bg: oklch(75% 0.17 155 / 0.14);
+
+  /* Busy — blue (pulsing in motion) */
+  --state-busy: oklch(72% 0.15 240);
+  --state-busy-fg: oklch(80% 0.14 240);
+  --state-busy-bg: oklch(72% 0.15 240 / 0.14);
+
+  /* Degraded — amber */
+  --state-degraded: oklch(80% 0.16 75);
+  --state-degraded-fg: oklch(85% 0.15 75);
+  --state-degraded-bg: oklch(80% 0.16 75 / 0.14);
+
+  /* Down — red */
+  --state-down: oklch(66% 0.22 25);
+  --state-down-fg: oklch(75% 0.20 25);
+  --state-down-bg: oklch(66% 0.22 25 / 0.14);
+
+  /* Dreaming — purple (evaluating/dreaming/consolidating) */
+  --state-dream: oklch(70% 0.18 310);
+  --state-dream-fg: oklch(78% 0.16 310);
+  --state-dream-bg: oklch(70% 0.18 310 / 0.14);
+
+  /* Unknown — grey */
+  --state-unknown: oklch(55% 0.01 55);
+  --state-unknown-fg: oklch(68% 0.01 55);
+  --state-unknown-bg: oklch(55% 0.01 55 / 0.14);
+
+  /* ========================================================================
+     COLOR — LOG FILE PREFIX COLORS (matches CLI `sentinel log`)
+     Each log file gets a stable hue for skimmability.
+     ======================================================================== */
+  --log-api: oklch(72% 0.15 240);        /* blue */
+  --log-graphiti: oklch(70% 0.18 310);   /* purple */
+  --log-mcp: oklch(75% 0.17 155);        /* green */
+  --log-llm: oklch(72% 0.17 55);         /* ember */
+  --log-dashboard: oklch(80% 0.16 75);   /* amber */
+  --log-discord: oklch(68% 0.14 270);    /* indigo */
+  --log-websearch: oklch(70% 0.14 200);  /* teal */
+
+  /* ========================================================================
+     TYPE — FAMILIES
+     ======================================================================== */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter Tight", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  --font-soul: "Fraunces", ui-serif, Georgia, serif;   /* USE SPARINGLY */
+
+  /* ========================================================================
+     TYPE — SCALE
+     ======================================================================== */
+  --text-2xs: 10.5px;  /* labels on dense tables, never below */
+  --text-xs:  11.5px;  /* micro metadata, mono-friendly */
+  --text-sm:  13px;    /* compact body, default in tables */
+  --text-md:  14px;    /* default body */
+  --text-lg:  16px;    /* chat body / comfortable reading */
+  --text-xl:  20px;    /* subtitle */
+  --text-2xl: 26px;    /* h2 */
+  --text-3xl: 34px;    /* h1 */
+  --text-4xl: 48px;    /* hero display */
+
+  /* ========================================================================
+     TYPE — LINE HEIGHT
+     ======================================================================== */
+  --lh-tight: 1.15;     /* display */
+  --lh-snug: 1.3;       /* ui */
+  --lh-normal: 1.5;     /* body */
+  --lh-relaxed: 1.65;   /* chat reading */
+
+  /* ========================================================================
+     SPACING — 4px base, compact bias. Two density tokens.
+     ======================================================================== */
+  --sp-0: 0;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 32px;
+  --sp-8: 40px;
+  --sp-9: 56px;
+  --sp-10: 72px;
+
+  /* Density tokens — swap between comfortable (mobile) and compact (desktop). */
+  --density-row: 44px;         /* comfortable: mobile default */
+  --density-row-compact: 32px; /* compact: desktop default */
+  --density-gutter: 16px;
+  --density-gutter-compact: 12px;
+
+  /* ========================================================================
+     RADII — small everywhere. Devtool, not consumer SaaS.
+     ======================================================================== */
+  --radius-xs: 3px;
+  --radius-sm: 5px;        /* default */
+  --radius-md: 8px;        /* cards, sheets */
+  --radius-lg: 12px;       /* modals */
+  --radius-pill: 999px;
+
+  /* ========================================================================
+     SHADOWS — subtle, never candy-soft. Dark UI = tight shadows.
+     ======================================================================== */
+  --shadow-0: none;
+  --shadow-1: 0 1px 0 oklch(0% 0 0 / 0.35);                          /* hairline */
+  --shadow-2: 0 2px 6px oklch(0% 0 0 / 0.4), 0 1px 0 oklch(0% 0 0 / 0.35);
+  --shadow-3: 0 8px 24px oklch(0% 0 0 / 0.5), 0 1px 0 oklch(0% 0 0 / 0.35);
+  --shadow-focus: 0 0 0 2px var(--canvas-0), 0 0 0 4px var(--border-focus);
+
+  /* ========================================================================
+     MOTION — subtle. State transitions, not flourish.
+     ======================================================================== */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-busy: cubic-bezier(0.45, 0, 0.55, 1);   /* for busy-pulse */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+
+  /* ========================================================================
+     Z-LAYERS
+     ======================================================================== */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-drawer: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+  --z-palette: 500;
+
+  /* ========================================================================
+     SEMANTIC — headings, body, code
+     ======================================================================== */
+}
+
+/* ---- Semantic text styles ---- */
+.ds-h1, .ds-h2, .ds-h3, .ds-display, .ds-body, .ds-caption, .ds-mono, .ds-soul {
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ds-display {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.ds-h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.015em;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.ds-h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--lh-snug);
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.ds-h3 {
+  font-family: var(--font-sans);
+  font-size: var(--text-xl);
+  line-height: var(--lh-snug);
+  letter-spacing: -0.005em;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+
+.ds-body {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: var(--lh-normal);
+  font-weight: 400;
+  color: var(--fg-2);
+}
+
+.ds-body-lg {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  line-height: var(--lh-relaxed);
+  font-weight: 400;
+  color: var(--fg-1);
+}
+
+.ds-caption {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: var(--lh-snug);
+  font-weight: 500;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ds-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--lh-snug);
+  font-weight: 500;
+  color: var(--fg-2);
+  font-feature-settings: "ss01", "ss02";
+}
+
+.ds-mono-sm {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-snug);
+  font-weight: 500;
+  color: var(--fg-3);
+}
+
+/* SOUL — reserved for emotional moments (Beardy quotes, morning briefing
+   salutations, empty-state warmth). Never for operational UI. */
+.ds-soul {
+  font-family: var(--font-soul);
+  font-style: italic;
+  font-size: var(--text-xl);
+  line-height: var(--lh-relaxed);
+  font-weight: 500;
+  color: var(--fg-1);
+  letter-spacing: -0.01em;
+}
+
+/* ---- Reset helpers for cards ---- */
+.ds-reset { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ---- Status dot primitive ---- */
+.ds-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.ds-dot--healthy  { background: var(--state-healthy); box-shadow: 0 0 8px oklch(75% 0.17 155 / 0.5); }
+.ds-dot--busy     { background: var(--state-busy);    animation: ds-pulse 1.6s var(--ease-busy) infinite; }
+.ds-dot--degraded { background: var(--state-degraded); }
+.ds-dot--down     { background: var(--state-down); }
+.ds-dot--dream    { background: var(--state-dream);   animation: ds-pulse 2s var(--ease-busy) infinite; }
+.ds-dot--unknown  { background: var(--state-unknown); }
+
+@keyframes ds-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.55; transform: scale(0.85); }
+}
