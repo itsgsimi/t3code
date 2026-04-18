@@ -83,7 +83,7 @@ function useNewThreadState() {
             return;
           }
           await router.navigate({
-            to: "/draft/$draftId",
+            to: "/sessions/draft/$draftId",
             params: { draftId: storedDraftThread.draftId },
           });
         })();
@@ -129,7 +129,7 @@ function useNewThreadState() {
         applyStickyState(draftId);
 
         await router.navigate({
-          to: "/draft/$draftId",
+          to: "/sessions/draft/$draftId",
           params: { draftId },
         });
       })();

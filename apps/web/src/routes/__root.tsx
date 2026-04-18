@@ -249,14 +249,17 @@ function EventRouter() {
         );
       useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
 
-      if (readPathname() !== "/") {
+      // Only auto-jump to the bootstrap thread from the Sentinel root or the
+      // Sessions index — never yank the user out of Home, Stack, etc.
+      const current = readPathname();
+      if (current !== "/" && current !== "/sessions" && current !== "/sessions/") {
         return;
       }
       if (handledBootstrapThreadIdRef.current === payload.bootstrapThreadId) {
         return;
       }
       await navigate({
-        to: "/$environmentId/$threadId",
+        to: "/sessions/$environmentId/$threadId",
         params: {
           environmentId: payload.environment.environmentId,
           threadId: payload.bootstrapThreadId,

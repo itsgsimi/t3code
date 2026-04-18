@@ -24,9 +24,9 @@ const NAV: readonly NavEntry[] = [
   {
     key: "sessions",
     label: "Sessions",
-    to: "/",
+    to: "/sessions",
     icon: ListTodo,
-    matches: (p) => p === "/" || p.startsWith("/draft/") || /^\/[^/]+\/[^/]+\/?$/.test(p), // $environmentId/$threadId
+    matches: (p) => p === "/sessions" || p.startsWith("/sessions/"),
   },
   {
     key: "stack",

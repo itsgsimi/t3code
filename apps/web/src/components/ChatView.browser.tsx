@@ -2670,7 +2670,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
       );
 
       await mounted.router.navigate({
-        to: "/$environmentId/$threadId",
+        to: "/sessions/$environmentId/$threadId",
         params: {
           environmentId: LOCAL_ENVIRONMENT_ID,
           threadId: secondThreadId,
@@ -3654,7 +3654,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
       await promoteDraftThreadViaDomainEvent(newThreadId);
 
       await mounted.router.navigate({
-        to: "/draft/$draftId",
+        to: "/sessions/draft/$draftId",
         params: { draftId: newDraftId },
       });
 

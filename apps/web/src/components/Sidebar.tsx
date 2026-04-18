@@ -1523,7 +1523,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       }
       setSelectionAnchor(scopedThreadKey(threadRef));
       void router.navigate({
-        to: "/$environmentId/$threadId",
+        to: "/sessions/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),
       });
     },
@@ -1559,7 +1559,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       }
       setSelectionAnchor(threadKey);
       void router.navigate({
-        to: "/$environmentId/$threadId",
+        to: "/sessions/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),
       });
     },
@@ -2846,7 +2846,7 @@ export default function Sidebar() {
       }
       setSelectionAnchor(scopedThreadKey(threadRef));
       void navigate({
-        to: "/$environmentId/$threadId",
+        to: "/sessions/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),
       });
     },

@@ -192,7 +192,7 @@ function ChatThreadRouteView() {
       return;
     }
     void navigate({
-      to: "/$environmentId/$threadId",
+      to: "/sessions/$environmentId/$threadId",
       params: buildThreadRouteParams(threadRef),
       search: { diff: undefined },
     });
@@ -203,7 +203,7 @@ function ChatThreadRouteView() {
     }
     markDiffOpened();
     void navigate({
-      to: "/$environmentId/$threadId",
+      to: "/sessions/$environmentId/$threadId",
       params: buildThreadRouteParams(threadRef),
       search: (previous) => {
         const rest = stripDiffSearchParams(previous);
@@ -274,7 +274,7 @@ function ChatThreadRouteView() {
   );
 }
 
-export const Route = createFileRoute("/_chat/_sessions/$environmentId/$threadId")({
+export const Route = createFileRoute("/_chat/sessions/$environmentId/$threadId")({
   validateSearch: (search) => parseDiffRouteSearch(search),
   search: {
     middlewares: [retainSearchParams<DiffRouteSearch>(["diff"])],

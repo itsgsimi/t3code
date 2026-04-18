@@ -944,7 +944,7 @@ export default function ChatView(props: ChatViewProps) {
         );
         if (routeKind !== "draft" || draftId !== storedDraftSession.draftId) {
           await navigate({
-            to: "/draft/$draftId",
+            to: "/sessions/draft/$draftId",
             params: buildDraftThreadRouteParams(storedDraftSession.draftId),
           });
         }
@@ -978,7 +978,7 @@ export default function ChatView(props: ChatViewProps) {
         ...input,
       });
       await navigate({
-        to: "/draft/$draftId",
+        to: "/sessions/draft/$draftId",
         params: buildDraftThreadRouteParams(nextDraftId),
       });
       return nextThreadId;
@@ -1482,7 +1482,7 @@ export default function ChatView(props: ChatViewProps) {
       onDiffPanelOpen?.();
     }
     void navigate({
-      to: "/$environmentId/$threadId",
+      to: "/sessions/$environmentId/$threadId",
       params: {
         environmentId,
         threadId,
@@ -3059,7 +3059,7 @@ export default function ChatView(props: ChatViewProps) {
         // Signal that the plan sidebar should open on the new thread.
         planSidebarOpenOnNextThreadRef.current = true;
         return navigate({
-          to: "/$environmentId/$threadId",
+          to: "/sessions/$environmentId/$threadId",
           params: {
             environmentId: activeThread.environmentId,
             threadId: nextThreadId,
@@ -3168,7 +3168,7 @@ export default function ChatView(props: ChatViewProps) {
       }
       onDiffPanelOpen?.();
       void navigate({
-        to: "/$environmentId/$threadId",
+        to: "/sessions/$environmentId/$threadId",
         params: {
           environmentId,
           threadId,
