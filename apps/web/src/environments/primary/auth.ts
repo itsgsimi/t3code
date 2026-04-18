@@ -56,8 +56,11 @@ type ServerAuthGateState =
       errorMessage?: string;
     };
 
-let bootstrapPromise: Promise<ServerAuthGateState> | null = null;
-let resolvedAuthenticatedGateState: ServerAuthGateState | null = null;
+// Pairing gate was removed — these are kept so the _bootstrapServerAuth
+// helper below (still present for ergonomics if the gate is ever restored)
+// compiles. Prefixed with `_` so the linter ignores them.
+let _bootstrapPromise: Promise<ServerAuthGateState> | null = null;
+let _resolvedAuthenticatedGateState: ServerAuthGateState | null = null;
 const AUTH_SESSION_ESTABLISH_TIMEOUT_MS = 2_000;
 const AUTH_SESSION_ESTABLISH_STEP_MS = 100;
 
@@ -189,7 +192,7 @@ function isTransientBootstrapError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
 }
 
-async function bootstrapServerAuth(): Promise<ServerAuthGateState> {
+async function _bootstrapServerAuth(): Promise<ServerAuthGateState> {
   const bootstrapCredential = getDesktopBootstrapCredential();
   const currentSession = await fetchSessionState();
   if (currentSession.authenticated) {
@@ -222,9 +225,9 @@ export async function submitServerAuthCredential(credential: string): Promise<vo
     throw new Error("Enter a pairing token to continue.");
   }
 
-  resolvedAuthenticatedGateState = null;
+  _resolvedAuthenticatedGateState = null;
   await exchangeBootstrapCredential(trimmedCredential);
-  bootstrapPromise = null;
+  _bootstrapPromise = null;
   stripPairingTokenFromUrl();
 }
 
@@ -332,31 +335,14 @@ export async function revokeOtherServerClientSessions(): Promise<number> {
 }
 
 export async function resolveInitialServerAuthGateState(): Promise<ServerAuthGateState> {
-  if (resolvedAuthenticatedGateState?.status === "authenticated") {
-    return resolvedAuthenticatedGateState;
-  }
-
-  if (bootstrapPromise) {
-    return bootstrapPromise;
-  }
-
-  const nextPromise = bootstrapServerAuth();
-  bootstrapPromise = nextPromise;
-  return nextPromise
-    .then((result) => {
-      if (result.status === "authenticated") {
-        resolvedAuthenticatedGateState = result;
-      }
-      return result;
-    })
-    .finally(() => {
-      if (bootstrapPromise === nextPromise) {
-        bootstrapPromise = null;
-      }
-    });
+  // Sentinel is LAN-only and single-user; we intentionally skip the pairing
+  // handshake that t3code ships with. The app boots straight into the
+  // "authenticated" state. If pair-based auth is ever re-enabled, restore the
+  // bootstrapServerAuth() wiring around this gate.
+  return { status: "authenticated" };
 }
 
 export function __resetServerAuthBootstrapForTests() {
-  bootstrapPromise = null;
-  resolvedAuthenticatedGateState = null;
+  _bootstrapPromise = null;
+  _resolvedAuthenticatedGateState = null;
 }
