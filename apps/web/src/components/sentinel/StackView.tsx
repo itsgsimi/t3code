@@ -103,7 +103,7 @@ interface Service {
 function useServices(
   health?: { status: string; model_name?: string; context_length?: number },
   agent?: { mcp_servers: Record<string, boolean> },
-  tools?: Array<{ server: string; tools: { name: string }[] }>,
+  tools?: { servers: Record<string, string[]>; toolsets: Record<string, string[]> },
 ): readonly Service[] {
   return useMemo(() => {
     const apiReachable = Boolean(health);
@@ -134,9 +134,11 @@ function useServices(
         }
       : null;
 
+    const serversMap = tools?.servers ?? {};
     const mcpCards: Service[] = agent
       ? Object.entries(agent.mcp_servers).map(([name, connected]) => {
-          const toolCount = tools?.find((g) => g.server === name)?.tools.length ?? 0;
+          const toolList = serversMap[name];
+          const toolCount = Array.isArray(toolList) ? toolList.length : 0;
           return {
             name: `mcp · ${name}`,
             descriptor:

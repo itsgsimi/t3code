@@ -310,10 +310,11 @@ function StackOverview() {
     ["mcp · host-monitor", "loading…", "unknown"],
   ];
 
+  const serversMap = tools.data?.servers ?? {};
   const rows: Array<[string, string, DotState]> = agent.data
     ? Object.entries(agent.data.mcp_servers).map(([name, connected]) => {
-        const group = tools.data?.find((g) => g.server === name);
-        const count = group?.tools.length ?? 0;
+        const toolList = serversMap[name];
+        const count = Array.isArray(toolList) ? toolList.length : 0;
         return [
           `mcp · ${name}`,
           count > 0 ? `${count} tools` : connected ? "connected" : "no tools",

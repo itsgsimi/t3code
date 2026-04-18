@@ -91,22 +91,26 @@ export interface SentinelAgentStatus {
   mcp_servers: Record<string, boolean>;
 }
 
-export interface SentinelTool {
-  name: string;
-  description: string;
-  params?: Record<string, unknown>;
-}
-
-export interface SentinelToolGroup {
-  server: string;
-  toolset: string;
-  tools: SentinelTool[];
+/**
+ * Response shape of `/v1/agent/tools` — matches runtime.get_agent_tools().
+ * servers: map of MCP server name → list of tool names exposed by that server.
+ * toolsets: map of toolset name → list of tools in that toolset.
+ */
+export interface SentinelAgentTools {
+  servers: Record<string, string[]>;
+  toolsets: Record<string, string[]>;
 }
 
 export interface SentinelSkill {
   name: string;
   description: string;
+  path?: string;
   triggers?: string[];
+}
+
+export interface SentinelAgentSkills {
+  skills: SentinelSkill[];
+  injection_enabled: boolean;
 }
 
 export interface SentinelSession {
@@ -151,12 +155,12 @@ export function fetchSentinelAgentStatus(): Promise<SentinelAgentStatus> {
   return get<SentinelAgentStatus>("/v1/agent/status");
 }
 
-export function fetchSentinelAgentTools(): Promise<SentinelToolGroup[]> {
-  return get<SentinelToolGroup[]>("/v1/agent/tools");
+export function fetchSentinelAgentTools(): Promise<SentinelAgentTools> {
+  return get<SentinelAgentTools>("/v1/agent/tools");
 }
 
-export function fetchSentinelAgentSkills(): Promise<SentinelSkill[]> {
-  return get<SentinelSkill[]>("/v1/agent/skills");
+export function fetchSentinelAgentSkills(): Promise<SentinelAgentSkills> {
+  return get<SentinelAgentSkills>("/v1/agent/skills");
 }
 
 export function fetchSentinelSessions(limit = 20): Promise<SentinelSession[]> {

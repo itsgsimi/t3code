@@ -13,7 +13,7 @@ import {
   type SentinelHealth,
   type SentinelQueryRequest,
   type SentinelSession,
-  type SentinelToolGroup,
+  type SentinelAgentTools,
 } from "./api";
 
 /** Top-level health ping — refreshes every 10s. */
@@ -36,7 +36,7 @@ export function useSentinelAgentStatus() {
 }
 
 export function useSentinelAgentTools() {
-  return useQuery<SentinelToolGroup[]>({
+  return useQuery<SentinelAgentTools>({
     queryKey: ["sentinel", "agent", "tools"],
     queryFn: fetchSentinelAgentTools,
     retry: false,
