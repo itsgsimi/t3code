@@ -127,7 +127,8 @@ function DriftBanner({ drift }: { drift: readonly SentinelLoadedRole[] }) {
       <span className="ds-dot ds-dot--degraded" style={{ marginTop: 5 }} aria-hidden />
       <div>
         <div style={{ color: "var(--state-degraded-fg)", fontWeight: 500 }}>
-          {drift.length} role{drift.length === 1 ? "" : "s"} show runtime drift.
+          {drift.length} role{drift.length === 1 ? "" : "s"} {drift.length === 1 ? "shows" : "show"}{" "}
+          runtime drift.
         </div>
         <div style={{ color: "var(--fg-3)", marginTop: 2 }}>
           The llama-server on that port is either down, or running a different model than{" "}
