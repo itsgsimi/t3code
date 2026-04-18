@@ -16,6 +16,12 @@ import { Route as ChatIndexRouteImport } from './routes/_chat.index'
 import { Route as SettingsGeneralRouteImport } from './routes/settings.general'
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SettingsArchivedRouteImport } from './routes/settings.archived'
+import { Route as ChatStackRouteImport } from './routes/_chat.stack'
+import { Route as ChatModelsRouteImport } from './routes/_chat.models'
+import { Route as ChatHomeRouteImport } from './routes/_chat.home'
+import { Route as ChatDeployRouteImport } from './routes/_chat.deploy'
+import { Route as ChatConfigRouteImport } from './routes/_chat.config'
+import { Route as ChatAgentsRouteImport } from './routes/_chat.agents'
 import { Route as ChatDraftDraftIdRouteImport } from './routes/_chat.draft.$draftId'
 import { Route as ChatEnvironmentIdThreadIdRouteImport } from './routes/_chat.$environmentId.$threadId'
 
@@ -53,6 +59,36 @@ const SettingsArchivedRoute = SettingsArchivedRouteImport.update({
   path: '/archived',
   getParentRoute: () => SettingsRoute,
 } as any)
+const ChatStackRoute = ChatStackRouteImport.update({
+  id: '/stack',
+  path: '/stack',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatModelsRoute = ChatModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatHomeRoute = ChatHomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatDeployRoute = ChatDeployRouteImport.update({
+  id: '/deploy',
+  path: '/deploy',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatConfigRoute = ChatConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatAgentsRoute = ChatAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ChatDraftDraftIdRoute = ChatDraftDraftIdRouteImport.update({
   id: '/draft/$draftId',
   path: '/draft/$draftId',
@@ -69,6 +105,12 @@ export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/agents': typeof ChatAgentsRoute
+  '/config': typeof ChatConfigRoute
+  '/deploy': typeof ChatDeployRoute
+  '/home': typeof ChatHomeRoute
+  '/models': typeof ChatModelsRoute
+  '/stack': typeof ChatStackRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/general': typeof SettingsGeneralRoute
@@ -78,6 +120,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/agents': typeof ChatAgentsRoute
+  '/config': typeof ChatConfigRoute
+  '/deploy': typeof ChatDeployRoute
+  '/home': typeof ChatHomeRoute
+  '/models': typeof ChatModelsRoute
+  '/stack': typeof ChatStackRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/general': typeof SettingsGeneralRoute
@@ -90,6 +138,12 @@ export interface FileRoutesById {
   '/_chat': typeof ChatRouteWithChildren
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/_chat/agents': typeof ChatAgentsRoute
+  '/_chat/config': typeof ChatConfigRoute
+  '/_chat/deploy': typeof ChatDeployRoute
+  '/_chat/home': typeof ChatHomeRoute
+  '/_chat/models': typeof ChatModelsRoute
+  '/_chat/stack': typeof ChatStackRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/general': typeof SettingsGeneralRoute
@@ -103,6 +157,12 @@ export interface FileRouteTypes {
     | '/'
     | '/pair'
     | '/settings'
+    | '/agents'
+    | '/config'
+    | '/deploy'
+    | '/home'
+    | '/models'
+    | '/stack'
     | '/settings/archived'
     | '/settings/connections'
     | '/settings/general'
@@ -112,6 +172,12 @@ export interface FileRouteTypes {
   to:
     | '/pair'
     | '/settings'
+    | '/agents'
+    | '/config'
+    | '/deploy'
+    | '/home'
+    | '/models'
+    | '/stack'
     | '/settings/archived'
     | '/settings/connections'
     | '/settings/general'
@@ -123,6 +189,12 @@ export interface FileRouteTypes {
     | '/_chat'
     | '/pair'
     | '/settings'
+    | '/_chat/agents'
+    | '/_chat/config'
+    | '/_chat/deploy'
+    | '/_chat/home'
+    | '/_chat/models'
+    | '/_chat/stack'
     | '/settings/archived'
     | '/settings/connections'
     | '/settings/general'
@@ -188,6 +260,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsArchivedRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/_chat/stack': {
+      id: '/_chat/stack'
+      path: '/stack'
+      fullPath: '/stack'
+      preLoaderRoute: typeof ChatStackRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/models': {
+      id: '/_chat/models'
+      path: '/models'
+      fullPath: '/models'
+      preLoaderRoute: typeof ChatModelsRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/home': {
+      id: '/_chat/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof ChatHomeRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/deploy': {
+      id: '/_chat/deploy'
+      path: '/deploy'
+      fullPath: '/deploy'
+      preLoaderRoute: typeof ChatDeployRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/config': {
+      id: '/_chat/config'
+      path: '/config'
+      fullPath: '/config'
+      preLoaderRoute: typeof ChatConfigRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/_chat/agents': {
+      id: '/_chat/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof ChatAgentsRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/draft/$draftId': {
       id: '/_chat/draft/$draftId'
       path: '/draft/$draftId'
@@ -206,12 +320,24 @@ declare module '@tanstack/react-router' {
 }
 
 interface ChatRouteChildren {
+  ChatAgentsRoute: typeof ChatAgentsRoute
+  ChatConfigRoute: typeof ChatConfigRoute
+  ChatDeployRoute: typeof ChatDeployRoute
+  ChatHomeRoute: typeof ChatHomeRoute
+  ChatModelsRoute: typeof ChatModelsRoute
+  ChatStackRoute: typeof ChatStackRoute
   ChatIndexRoute: typeof ChatIndexRoute
   ChatEnvironmentIdThreadIdRoute: typeof ChatEnvironmentIdThreadIdRoute
   ChatDraftDraftIdRoute: typeof ChatDraftDraftIdRoute
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
+  ChatAgentsRoute: ChatAgentsRoute,
+  ChatConfigRoute: ChatConfigRoute,
+  ChatDeployRoute: ChatDeployRoute,
+  ChatHomeRoute: ChatHomeRoute,
+  ChatModelsRoute: ChatModelsRoute,
+  ChatStackRoute: ChatStackRoute,
   ChatIndexRoute: ChatIndexRoute,
   ChatEnvironmentIdThreadIdRoute: ChatEnvironmentIdThreadIdRoute,
   ChatDraftDraftIdRoute: ChatDraftDraftIdRoute,

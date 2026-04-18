@@ -1,3 +1,8 @@
+/* Fonts: Inter (UI), Inter Tight (display), JetBrains Mono (identifiers).
+   Must come before any other rule per CSS spec. Fraunces is intentionally
+   dropped — the design brief reserves it for dream-report narration only,
+   which is not part of the web UI. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 @import "./styles/sentinel-tokens.css";
 
