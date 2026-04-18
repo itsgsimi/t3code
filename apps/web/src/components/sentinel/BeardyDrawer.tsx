@@ -2,34 +2,79 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Send, X } from "lucide-react";
 
 import { useBeardyDrawerStore } from "../../sentinel/beardyDrawerStore";
+import { useSentinelHealth, useSentinelQueryMutation } from "../../sentinel/hooks";
+
+interface LiveTurn {
+  id: string;
+  role: "user" | "beardy";
+  content: string;
+  error?: boolean;
+}
 
 /**
  * Beardy — ambient right-rail companion. Mono voice, first-person, no bubbles
  * on Beardy's side. Never hosts harness sessions (those live in the Sessions
  * route). See design README §"Two chat surfaces".
+ *
+ * The demo conversation at the top stays as-is so the drawer doesn't look
+ * empty on first load. Real turns from /v1/query append below it.
  */
 export function BeardyDrawer() {
   const open = useBeardyDrawerStore((state) => state.open);
   const toggle = useBeardyDrawerStore((state) => state.toggle);
+  const health = useSentinelHealth();
+  const query = useSentinelQueryMutation();
 
   const [draft, setDraft] = useState("");
+  const [sessionId, setSessionId] = useState<string | undefined>();
+  const [liveTurns, setLiveTurns] = useState<LiveTurn[]>([]);
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (open && bodyRef.current) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
-  }, [open]);
+  }, [open, liveTurns.length]);
 
   if (!open) {
     return null;
   }
 
-  const canSend = draft.trim().length > 0;
+  const canSend = draft.trim().length > 0 && !query.isPending;
+  const modelName = health.data?.model_name ?? (health.isError ? "offline" : "loading");
+  const contextBudget = health.data?.context_length
+    ? `${Math.round(health.data.context_length / 1000)}k ctx`
+    : "—";
 
-  function send() {
-    // Mocked for this pass — the Sentinel API wiring is a later phase.
+  async function send() {
+    if (!canSend) return;
+    const text = draft.trim();
+    const userId = crypto.randomUUID();
     setDraft("");
+    setLiveTurns((prev) => [...prev, { id: userId, role: "user", content: text }]);
+
+    try {
+      const res = await query.mutateAsync({
+        query: text,
+        ...(sessionId ? { session_id: sessionId } : {}),
+      });
+      setSessionId(res.session_id);
+      setLiveTurns((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "beardy", content: res.response },
+      ]);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setLiveTurns((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "beardy",
+          content: `couldn't reach the api — ${message}`,
+          error: true,
+        },
+      ]);
+    }
   }
 
   return (
@@ -71,8 +116,11 @@ export function BeardyDrawer() {
               fontFamily: "var(--font-mono)",
             }}
           >
-            <span className="ds-dot ds-dot--healthy" aria-hidden />
-            awake · 14d uptime
+            <span
+              className={`ds-dot ds-dot--${health.isError ? "down" : health.data ? "healthy" : "unknown"}`}
+              aria-hidden
+            />
+            {health.isError ? "offline" : health.data ? "awake" : "connecting…"}
           </span>
         </div>
         <div className="flex-1" />
@@ -95,7 +143,7 @@ export function BeardyDrawer() {
           fontFamily: "var(--font-mono)",
         }}
       >
-        <Divider label="03:12 · dream cycle" />
+        <Divider label="example · dream cycle" />
         <BeardySay>
           <Glance state="healthy" label="4/4" /> Nothing regressed overnight. Ran a dream pass at
           03:12 — wrote <Mono>14 insights</Mono>, pruned <Mono>312 stale facts</Mono> from graphiti.
@@ -105,20 +153,28 @@ export function BeardyDrawer() {
           <Mono>89.4%</Mono>.
         </BeardySay>
 
-        <Divider label="08:14 · now" />
-
-        <UserTurn>what's using disk?</UserTurn>
-        <BeardySay>
-          <Glance state="degraded" label="87%" /> Mostly <Mono>~/models/quarantine</Mono> (41 GB —
-          three half-failed Q4 pulls) and <Mono>~/sessions/archive</Mono> (22 GB). I can prune the
-          quarantine dir safely. Want me to?
-        </BeardySay>
-
-        <UserTurn>yeah, go</UserTurn>
-        <BeardySay>
-          <Mono>fs.prune ~/models/quarantine</Mono> → freed <Mono>41.2 GB</Mono>. Disk now at{" "}
-          <Mono>54%</Mono>. Noted in memory.
-        </BeardySay>
+        {liveTurns.length > 0 ? <Divider label="now" /> : null}
+        {liveTurns.map((turn) =>
+          turn.role === "user" ? (
+            <UserTurn key={turn.id}>{turn.content}</UserTurn>
+          ) : (
+            <BeardySay key={turn.id} error={turn.error}>
+              {turn.content}
+            </BeardySay>
+          ),
+        )}
+        {query.isPending ? (
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              color: "var(--fg-3)",
+              padding: "2px 2px",
+            }}
+          >
+            <span className="ds-dot ds-dot--busy" aria-hidden /> beardy is thinking…
+          </div>
+        ) : null}
       </div>
 
       <footer
@@ -155,7 +211,7 @@ export function BeardyDrawer() {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (canSend) {
-                  send();
+                  void send();
                 }
               }
             }}
@@ -175,7 +231,7 @@ export function BeardyDrawer() {
           <button
             type="button"
             aria-label="Send"
-            onClick={send}
+            onClick={() => void send()}
             disabled={!canSend}
             className="flex items-center justify-center border-0"
             style={{
@@ -198,9 +254,9 @@ export function BeardyDrawer() {
             fontFamily: "var(--font-mono)",
           }}
         >
-          <span>qwen3.5-122b</span>
+          <span>{modelName}</span>
           <span>·</span>
-          <span>ctx 87k / 128k</span>
+          <span>{contextBudget}</span>
           <span style={{ marginLeft: "auto" }}>⏎ send</span>
         </div>
       </footer>
@@ -208,14 +264,14 @@ export function BeardyDrawer() {
   );
 }
 
-function BeardySay({ children }: { children: ReactNode }) {
+function BeardySay({ children, error }: { children: ReactNode; error?: boolean | undefined }) {
   return (
     <div
       style={{
         fontFamily: "var(--font-mono)",
         fontSize: 12,
         lineHeight: 1.55,
-        color: "var(--fg-2)",
+        color: error ? "var(--state-down-fg)" : "var(--fg-2)",
         padding: "2px 2px",
         whiteSpace: "pre-wrap",
       }}
@@ -282,8 +338,9 @@ function UserTurn({ children }: { children: ReactNode }) {
 function Divider({ label }: { label: string }) {
   return (
     <div
-      className="my-[10px_0_2px] flex items-center gap-2"
+      className="flex items-center gap-2"
       style={{
+        margin: "10px 0 2px",
         fontFamily: "var(--font-mono)",
         fontSize: 10,
         color: "var(--fg-4)",

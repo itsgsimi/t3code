@@ -1,45 +1,41 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+
+import {
+  useSentinelAgentStatus,
+  useSentinelAgentTools,
+  useSentinelHealth,
+} from "../../sentinel/hooks";
+import { PageCrumb, PageHeader, type DotState } from "./shared";
 
 /**
  * Stack — every process Sentinel manages, grouped by kind.
- * Data is mocked for this pass. See docs/design/2026-04-18-frontend-design-brief.md §7.2.
+ * Live data comes from /v1/health, /v1/agent/status, /v1/agent/tools. When
+ * the API is unreachable we fall back to a small synthetic list so operators
+ * can still see the page shape.
  */
 export function StackView() {
   const [tab, setTab] = useState<TabKey>("all");
+  const health = useSentinelHealth();
+  const agent = useSentinelAgentStatus();
+  const tools = useSentinelAgentTools();
+  const services = useServices(health.data, agent.data, tools.data);
 
-  const cards = SERVICES.filter((s) => (tab === "all" ? true : s.kind === tab));
+  const filtered = services.filter((s) => (tab === "all" ? true : s.kind === tab));
+  const healthyCount = services.filter((s) => s.state === "healthy").length;
+  const offline = health.isError;
 
   return (
     <div className="overflow-auto">
       <div style={pageStyle}>
-        <div style={{ fontSize: 12, color: "var(--fg-3)", marginBottom: 18 }}>Sentinel / Stack</div>
-        <div className="flex items-center gap-3" style={{ marginBottom: 4 }}>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 22,
-              fontWeight: 600,
-              color: "var(--fg-1)",
-              letterSpacing: "-0.02em",
-              margin: 0,
-            }}
-          >
-            Stack
-          </h1>
-          <span className="ds-dot ds-dot--healthy" aria-hidden />
-          <span
-            style={{
-              fontSize: 12,
-              color: "var(--state-healthy-fg)",
-              fontFamily: "var(--font-mono)",
-            }}
-          >
-            {countHealthy(SERVICES)} / {SERVICES.length} healthy
-          </span>
-        </div>
-        <p style={{ fontSize: 12.5, color: "var(--fg-3)", margin: "6px 0 18px" }}>
-          Every process Sentinel manages. Click a card to drill into logs and config.
-        </p>
+        <PageCrumb>Sentinel / Stack</PageCrumb>
+        <PageHeader
+          title="Stack"
+          chip={{
+            state: offline ? "down" : healthyCount === services.length ? "healthy" : "degraded",
+            text: offline ? "API offline" : `${healthyCount} / ${services.length} healthy`,
+          }}
+          subtitle="Every process Sentinel manages. State and tool counts come from the live API."
+        />
 
         <div
           className="flex gap-1"
@@ -50,16 +46,28 @@ export function StackView() {
               key={t}
               label={t}
               active={tab === t}
-              count={t === "all" ? SERVICES.length : SERVICES.filter((s) => s.kind === t).length}
+              count={t === "all" ? services.length : services.filter((s) => s.kind === t).length}
               onClick={() => setTab(t)}
             />
           ))}
         </div>
 
         <div style={gridStyle}>
-          {cards.map((service) => (
+          {filtered.map((service) => (
             <StackCard key={service.name} {...service} />
           ))}
+          {filtered.length === 0 ? (
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 12,
+                color: "var(--fg-3)",
+                padding: "16px 0",
+              }}
+            >
+              No services matching {tab}.
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -82,8 +90,6 @@ type TabKey = "all" | "core" | "models" | "mcp" | "memory";
 
 const TABS: readonly TabKey[] = ["all", "core", "models", "mcp", "memory"] as const;
 
-type DotState = "healthy" | "busy" | "degraded" | "down" | "dream" | "unknown";
-
 interface Service {
   name: string;
   descriptor: string;
@@ -94,95 +100,78 @@ interface Service {
   note?: string;
 }
 
-const SERVICES: readonly Service[] = [
-  {
-    name: "llama.cpp",
-    descriptor: "Model runtime · :6969",
-    state: "healthy",
-    kind: "models",
-    latency: "38ms",
-    uptime: "14d 03h",
-    note: "qwen3.5-122b-a10b loaded",
-  },
-  {
-    name: "llama.cpp · worker",
-    descriptor: "Model runtime · :6966",
-    state: "healthy",
-    kind: "models",
-    latency: "18ms",
-    uptime: "14d 03h",
-  },
+function useServices(
+  health?: { status: string; model_name?: string; context_length?: number },
+  agent?: { mcp_servers: Record<string, boolean> },
+  tools?: Array<{ server: string; tools: { name: string }[] }>,
+): readonly Service[] {
+  return useMemo(() => {
+    const apiReachable = Boolean(health);
+
+    if (!apiReachable) {
+      return FALLBACK_SERVICES;
+    }
+
+    const apiCard: Service = {
+      name: "orchestrator (API)",
+      descriptor: "FastAPI · :6967",
+      state: health?.status === "ok" ? "healthy" : "degraded",
+      kind: "core",
+      latency: "—",
+      uptime: "—",
+    };
+
+    const modelCard: Service | null = health?.model_name
+      ? {
+          name: "llama.cpp",
+          descriptor: `${health.model_name}${
+            health.context_length ? ` · ${Math.round(health.context_length / 1000)}k ctx` : ""
+          }`,
+          state: "healthy",
+          kind: "models",
+          latency: "—",
+          uptime: "—",
+        }
+      : null;
+
+    const mcpCards: Service[] = agent
+      ? Object.entries(agent.mcp_servers).map(([name, connected]) => {
+          const toolCount = tools?.find((g) => g.server === name)?.tools.length ?? 0;
+          return {
+            name: `mcp · ${name}`,
+            descriptor:
+              toolCount > 0 ? `${toolCount} tools` : connected ? "connected" : "disconnected",
+            state: connected ? "healthy" : "down",
+            kind: classifyMcp(name),
+            latency: "—",
+            uptime: "—",
+          };
+        })
+      : [];
+
+    return [apiCard, ...(modelCard ? [modelCard] : []), ...mcpCards];
+  }, [health, agent, tools]);
+}
+
+function classifyMcp(name: string): Exclude<TabKey, "all"> {
+  if (name.includes("graphiti") || name.includes("vault") || name.includes("memory")) {
+    return "memory";
+  }
+  return "mcp";
+}
+
+/** Shown when /v1/health is unreachable — lets the page render with shape. */
+const FALLBACK_SERVICES: readonly Service[] = [
   {
     name: "orchestrator (API)",
     descriptor: "FastAPI · :6967",
-    state: "healthy",
+    state: "unknown",
     kind: "core",
-    latency: "12ms",
-    uptime: "14d 03h",
-  },
-  {
-    name: "discord-bridge",
-    descriptor: "Two-way bridge",
-    state: "healthy",
-    kind: "core",
-    latency: "110ms",
-    uptime: "14d 03h",
-  },
-  {
-    name: "host-monitor",
-    descriptor: "Remote · 192.168.1.31 (bearden)",
-    state: "healthy",
-    kind: "core",
-    latency: "4ms",
-    uptime: "14d 03h",
-  },
-  {
-    name: "mcp · web-search",
-    descriptor: "Perplexica adapter · :8094",
-    state: "healthy",
-    kind: "mcp",
-    latency: "7ms",
-    uptime: "14d 03h",
-  },
-  {
-    name: "mcp · graphiti",
-    descriptor: "Memory · 14,203 nodes",
-    state: "healthy",
-    kind: "memory",
-    latency: "22ms",
-    uptime: "14d 03h",
-    note: "last write · 03:24",
-  },
-  {
-    name: "mcp · sentinel-vault",
-    descriptor: "Remote · 192.168.1.153:8081",
-    state: "healthy",
-    kind: "mcp",
-    latency: "9ms",
-    uptime: "14d 03h",
-  },
-  {
-    name: "mcp · home-iot",
-    descriptor: "Govee + Home Assistant",
-    state: "degraded",
-    kind: "mcp",
-    latency: "320ms",
-    uptime: "4h 12m",
-    note: "hub polling slow · retry in 45s",
-  },
-  {
-    name: "neo4j",
-    descriptor: "Graphiti backend · :7687",
-    state: "healthy",
-    kind: "memory",
-    latency: "2ms",
-    uptime: "31d",
+    latency: "—",
+    uptime: "—",
+    note: "API unreachable — run `sentinel up`",
   },
 ];
-
-function countHealthy(services: readonly Service[]) {
-  return services.filter((s) => s.state === "healthy").length;
-}
 
 function Tab({
   label,

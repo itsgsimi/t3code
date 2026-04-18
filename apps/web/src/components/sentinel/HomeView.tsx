@@ -2,17 +2,30 @@ import { ArrowRight } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 
+import {
+  useSentinelAgentStatus,
+  useSentinelHealth,
+  useSentinelAgentTools,
+} from "../../sentinel/hooks";
+
 /**
  * Home — healthy-morning briefing + stack health strip + insights feed.
- * Data is mocked for this pass; wiring to the Sentinel API is a later phase.
+ * The briefing copy and insights feed are hand-written (not API data). The
+ * health tiles and stack overview wire up to real Sentinel API endpoints
+ * where available, with clear fallback labels when the API isn't reachable.
  * See docs/design/2026-04-18-frontend-design-brief.md §7.1.
  */
 export function HomeView() {
+  const health = useSentinelHealth();
+  const agent = useSentinelAgentStatus();
+  const apiUnreachable = health.isError;
+
   return (
     <div className="overflow-auto">
       <div style={pageStyle}>
+        {apiUnreachable ? <OfflineBanner /> : null}
         <Briefing />
-        <HealthTiles />
+        <HealthTiles health={health.data} agent={agent.data} offline={apiUnreachable} />
         <div style={twoColStyle}>
           <StackOverview />
           <RightColumn />
@@ -34,6 +47,36 @@ const twoColStyle: CSSProperties = {
   gap: 12,
   marginTop: 4,
 };
+
+function OfflineBanner() {
+  return (
+    <div
+      className="flex items-start gap-2"
+      style={{
+        background: "var(--state-down-bg)",
+        border: "1px solid var(--state-down-bg)",
+        color: "var(--state-down-fg)",
+        borderRadius: 6,
+        padding: "10px 14px",
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        marginBottom: 12,
+      }}
+    >
+      <span className="ds-dot ds-dot--down" style={{ marginTop: 5 }} aria-hidden />
+      <div>
+        <div style={{ color: "var(--state-down-fg)", fontWeight: 500 }}>
+          Can't reach the Sentinel API.
+        </div>
+        <div style={{ color: "var(--fg-3)", marginTop: 2 }}>
+          Run <span style={{ color: "var(--fg-1)" }}>sentinel up</span> (or{" "}
+          <span style={{ color: "var(--fg-1)" }}>sentinel api up</span>) and reload. Tiles below
+          show placeholder values until the stack is reachable.
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Briefing() {
   return (
@@ -91,7 +134,47 @@ function Strong({ children }: { children: ReactNode }) {
   return <span style={{ color: "var(--fg-1)" }}>{children}</span>;
 }
 
-function HealthTiles() {
+// ---- Health tiles ---------------------------------------------------------
+
+interface HealthTilesHealth {
+  model_name?: string | undefined;
+  context_length?: number | undefined;
+}
+interface HealthTilesAgent {
+  mcp_servers: Record<string, boolean>;
+  tool_count: number;
+}
+function HealthTiles({
+  health,
+  agent,
+  offline,
+}: {
+  health: HealthTilesHealth | undefined;
+  agent: HealthTilesAgent | undefined;
+  offline: boolean;
+}) {
+  const modelName = health?.model_name ?? "—";
+  const contextLength = health?.context_length
+    ? `${Math.round(health.context_length / 1000)}k ctx`
+    : offline
+      ? "offline"
+      : "loading";
+
+  const servers = agent ? Object.values(agent.mcp_servers) : [];
+  const connected = servers.filter(Boolean).length;
+  const total = servers.length;
+  const servicesValue = total === 0 ? (offline ? "—" : "…") : `${connected} / ${total}`;
+  const servicesState: DotState =
+    total === 0
+      ? "unknown"
+      : connected === total
+        ? "healthy"
+        : connected === 0
+          ? "down"
+          : "degraded";
+
+  const toolCount = agent?.tool_count ?? 0;
+
   return (
     <div
       style={{
@@ -100,10 +183,26 @@ function HealthTiles() {
         gap: 10,
       }}
     >
-      <Tile label="Active model" value="qwen3.5-122b" sub="ready · 38 tok/s" state="healthy" />
-      <Tile label="Services" value="4 / 4" sub="all healthy" state="healthy" />
-      <Tile label="GPU mem" value="62%" sub="91 / 128 GB" state="healthy" />
-      <Tile label="Last dream" value="5h ago" sub="14 insights" state="dream" />
+      <Tile
+        label="Active model"
+        value={modelName}
+        sub={contextLength}
+        state={offline ? "unknown" : "healthy"}
+        mono
+      />
+      <Tile
+        label="Services"
+        value={servicesValue}
+        sub={total === 0 ? "not reporting" : `${connected} connected`}
+        state={servicesState}
+      />
+      <Tile
+        label="Tools available"
+        value={String(toolCount)}
+        sub="via MCP"
+        state={toolCount > 0 ? "healthy" : "unknown"}
+      />
+      <Tile label="Last dream" value="5h ago" sub="14 insights · mocked" state="dream" />
     </div>
   );
 }
@@ -115,11 +214,13 @@ function Tile({
   value,
   sub,
   state,
+  mono,
 }: {
   label: string;
   value: string;
   sub: string;
   state?: DotState;
+  mono?: boolean;
 }) {
   return (
     <div
@@ -146,12 +247,13 @@ function Tile({
       </div>
       <div
         style={{
-          fontFamily: "var(--font-display)",
-          fontSize: 22,
+          fontFamily: mono ? "var(--font-mono)" : "var(--font-display)",
+          fontSize: mono ? 16 : 22,
           fontWeight: 600,
           color: "var(--fg-1)",
-          letterSpacing: "-0.02em",
-          lineHeight: 1,
+          letterSpacing: mono ? 0 : "-0.02em",
+          lineHeight: 1.1,
+          wordBreak: "break-all",
         }}
       >
         {value}
@@ -163,6 +265,8 @@ function Tile({
     </div>
   );
 }
+
+// ---- Stack overview ------------------------------------------------------
 
 function SectionHead({ title, to, linkLabel }: { title: string; to?: string; linkLabel?: string }) {
   return (
@@ -197,25 +301,38 @@ function SectionHead({ title, to, linkLabel }: { title: string; to?: string; lin
 }
 
 function StackOverview() {
-  const rows: Array<[string, string, DotState, string, string]> = [
-    ["llama.cpp", "qwen3.5-122b-a10b", "healthy", "38ms", ":6969"],
-    ["orchestrator", "beardy-core", "healthy", "12ms", ":6967"],
-    ["host-monitor", "systemd · probes", "healthy", "4ms", "192.168.1.31"],
-    ["mcp · web-search", "perplexica adapter", "healthy", "7ms", ":8094"],
-    ["mcp · graphiti", "memory · 14,203 nodes", "healthy", "22ms", ":8095"],
+  const agent = useSentinelAgentStatus();
+  const tools = useSentinelAgentTools();
+
+  const fallbackRows: Array<[string, string, DotState]> = [
+    ["mcp · graphiti", "loading…", "unknown"],
+    ["mcp · web-search", "loading…", "unknown"],
+    ["mcp · host-monitor", "loading…", "unknown"],
   ];
+
+  const rows: Array<[string, string, DotState]> = agent.data
+    ? Object.entries(agent.data.mcp_servers).map(([name, connected]) => {
+        const group = tools.data?.find((g) => g.server === name);
+        const count = group?.tools.length ?? 0;
+        return [
+          `mcp · ${name}`,
+          count > 0 ? `${count} tools` : connected ? "connected" : "no tools",
+          connected ? "healthy" : "down",
+        ];
+      })
+    : fallbackRows;
+
   return (
     <div>
       <SectionHead title="Stack" to="/stack" linkLabel="open stack" />
       <Card>
-        {rows.map(([name, sub, state, lat, loc], i) => (
+        {rows.map(([name, sub, state], i) => (
           <Row
             key={name}
             last={i === rows.length - 1}
             leading={<span className={`ds-dot ds-dot--${state}`} aria-hidden />}
             title={name}
             subtitle={sub}
-            meta={`${lat} · ${loc}`}
           />
         ))}
       </Card>

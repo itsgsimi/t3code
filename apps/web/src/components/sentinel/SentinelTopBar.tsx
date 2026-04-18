@@ -3,6 +3,7 @@ import { Bot, Settings } from "lucide-react";
 
 import { useCommandPaletteStore } from "../../commandPaletteStore";
 import { useBeardyDrawerStore } from "../../sentinel/beardyDrawerStore";
+import { useSentinelAgentStatus, useSentinelHealth } from "../../sentinel/hooks";
 
 const FORMATTED_SHORTCUT = navigator.userAgent.toLowerCase().includes("mac") ? "⌘K" : "Ctrl K";
 
@@ -102,21 +103,48 @@ export function SentinelTopBar() {
 }
 
 function HealthChip() {
+  const agentStatus = useSentinelAgentStatus();
+  const health = useSentinelHealth();
+
+  const state: "healthy" | "degraded" | "down" | "unknown" = (() => {
+    if (health.isError) return "down";
+    if (agentStatus.isError) return "degraded";
+    if (!agentStatus.data) return "unknown";
+    const servers = Object.values(agentStatus.data.mcp_servers);
+    const connected = servers.filter(Boolean).length;
+    if (connected === 0) return "down";
+    if (connected < servers.length) return "degraded";
+    return "healthy";
+  })();
+
+  const label = (() => {
+    if (health.isError) return "API offline";
+    if (agentStatus.isError) return "agent degraded";
+    if (!agentStatus.data) return "checking…";
+    const servers = Object.values(agentStatus.data.mcp_servers);
+    const connected = servers.filter(Boolean).length;
+    return `${connected} / ${servers.length} healthy`;
+  })();
+
   return (
     <div
       className="inline-flex items-center gap-[7px]"
       style={{
         padding: "4px 10px",
         borderRadius: 999,
-        background: "var(--state-healthy-bg)",
-        color: "var(--state-healthy-fg)",
+        background: `var(--state-${state}-bg)`,
+        color: `var(--state-${state}-fg)`,
         fontSize: 12,
         fontWeight: 500,
-        cursor: "pointer",
       }}
+      title={
+        health.isError
+          ? "Cannot reach Sentinel API. Check that `sentinel up` or `sentinel api up` is running."
+          : "Sentinel stack status"
+      }
     >
-      <span className="ds-dot ds-dot--healthy" aria-hidden />
-      <span>4 / 4 healthy</span>
+      <span className={`ds-dot ds-dot--${state}`} aria-hidden />
+      <span>{label}</span>
     </div>
   );
 }
