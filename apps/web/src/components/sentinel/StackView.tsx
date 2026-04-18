@@ -144,8 +144,9 @@ function useServices(
       if (!r.port) continue;
       const state: DotState = !r.healthy
         ? "down"
-        : r.loaded_model && r.configured_model_file
-          ? normalize(r.configured_model_file) !== normalize(r.loaded_model)
+        : r.loaded_model
+          ? r.configured_model_file &&
+            normalize(r.configured_model_file) !== normalize(r.loaded_model)
             ? "degraded"
             : "healthy"
           : "busy";
