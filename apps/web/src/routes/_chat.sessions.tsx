@@ -1,34 +1,28 @@
 import { Outlet, createFileRoute } from "@tanstack/react-router";
 
 import ThreadSidebar from "../components/Sidebar";
-import { Sidebar, SidebarProvider, SidebarRail } from "../components/ui/sidebar";
-
-const THREAD_SIDEBAR_WIDTH_STORAGE_KEY = "chat_thread_sidebar_width";
-const THREAD_SIDEBAR_MIN_WIDTH = 13 * 16;
-const THREAD_MAIN_CONTENT_MIN_WIDTH = 40 * 16;
+import { Sidebar, SidebarProvider } from "../components/ui/sidebar";
 
 /**
  * Sessions layout — wraps the harness session routes (index, thread detail,
  * draft) with t3code's thread sidebar. The Sentinel chrome (top bar, rail,
  * Beardy drawer) lives outside; this layout only renders inside the
  * Sessions section of the product.
+ *
+ * The thread sidebar uses collapsible="none" so it participates in Sentinel's
+ * normal flex layout instead of position:fixed-ing itself over the rail.
+ * That's what lets the Sessions surface feel integrated with the rest of the
+ * app — click any rail icon and you're out, no modal-like takeover.
  */
 function SessionsLayout() {
   return (
     <SidebarProvider defaultOpen>
       <Sidebar
         side="left"
-        collapsible="offcanvas"
-        className="border-r border-border bg-card text-foreground"
-        resizable={{
-          minWidth: THREAD_SIDEBAR_MIN_WIDTH,
-          shouldAcceptWidth: ({ nextWidth, wrapper }) =>
-            wrapper.clientWidth - nextWidth >= THREAD_MAIN_CONTENT_MIN_WIDTH,
-          storageKey: THREAD_SIDEBAR_WIDTH_STORAGE_KEY,
-        }}
+        collapsible="none"
+        className="w-[260px] shrink-0 border-r border-border bg-card text-foreground"
       >
         <ThreadSidebar />
-        <SidebarRail />
       </Sidebar>
       <Outlet />
     </SidebarProvider>
