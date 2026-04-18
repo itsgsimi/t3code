@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 
+import { useSentinelTriggerDream } from "../../sentinel/hooks";
 import { PageCrumb, PageHeader, Tabs, type DotState, type TabOption } from "./shared";
 
 /**
@@ -187,6 +188,15 @@ function EvalsTab() {
 // ---- Dream ----------------------------------------------------------------
 
 function DreamTab() {
+  const dream = useSentinelTriggerDream();
+  const status = (() => {
+    if (dream.isPending) return { label: "Running dream…", state: "busy" as const };
+    if (dream.isError)
+      return { label: `Failed: ${(dream.error as Error).message}`, state: "down" as const };
+    if (dream.isSuccess) return { label: "Last run: success", state: "healthy" as const };
+    return null;
+  })();
+
   return (
     <div className="grid gap-3" style={{ gridTemplateColumns: "minmax(0, 1.2fr) minmax(0, 1fr)" }}>
       <Card>
@@ -204,21 +214,40 @@ function DreamTab() {
           <KV label="expected duration" value="8–12 min" />
           <KV label="sessions in queue" value="14" />
         </div>
-        <div style={{ borderTop: "1px solid var(--border-soft)", padding: "10px 14px" }}>
+        <div
+          className="flex items-center gap-3"
+          style={{ borderTop: "1px solid var(--border-soft)", padding: "10px 14px" }}
+        >
           <button
             type="button"
+            onClick={() => dream.mutate()}
+            disabled={dream.isPending}
             className="cursor-pointer border-0"
             style={{
               padding: "7px 14px",
               borderRadius: 5,
-              background: "var(--ember-400)",
-              color: "var(--fg-on-accent)",
+              background: dream.isPending ? "var(--canvas-3)" : "var(--ember-400)",
+              color: dream.isPending ? "var(--fg-3)" : "var(--fg-on-accent)",
               fontSize: 12.5,
               fontWeight: 500,
+              cursor: dream.isPending ? "default" : "pointer",
             }}
           >
-            Run dream now
+            {dream.isPending ? "Running…" : "Run dream now"}
           </button>
+          {status ? (
+            <span
+              className="flex items-center gap-[6px]"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 11.5,
+                color: `var(--state-${status.state}-fg)`,
+              }}
+            >
+              <span className={`ds-dot ds-dot--${status.state}`} aria-hidden />
+              {status.label}
+            </span>
+          ) : null}
         </div>
       </Card>
       <Card>
