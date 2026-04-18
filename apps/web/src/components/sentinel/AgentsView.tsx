@@ -488,8 +488,8 @@ function TableHead({ columns, widths }: { columns: readonly string[]; widths: re
         letterSpacing: "0.08em",
       }}
     >
-      {columns.map((col, i) => (
-        <span key={i}>{col}</span>
+      {columns.map((col) => (
+        <span key={col}>{col}</span>
       ))}
     </div>
   );

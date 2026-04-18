@@ -133,7 +133,7 @@ const ROLES: readonly Role[] = [
 function RolesTab() {
   return (
     <Card>
-      <TableHead columns={["role", "model", "port", "ctx", "", ""]} />
+      <TableHead columns={["role", "model", "port", "ctx", "override", "action"]} />
       {ROLES.map((r, i) => (
         <div
           key={r.role}
@@ -506,8 +506,8 @@ function TableHead({ columns }: { columns: readonly string[] }) {
         letterSpacing: "0.08em",
       }}
     >
-      {columns.map((col, i) => (
-        <span key={i}>{col}</span>
+      {columns.map((col) => (
+        <span key={col}>{col}</span>
       ))}
     </div>
   );
