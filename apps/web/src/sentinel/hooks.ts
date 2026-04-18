@@ -11,6 +11,7 @@ import {
   fetchLangfuseStatus,
   fetchModelsPresets,
   fetchModelsRegistry,
+  fetchModelsLoaded,
   fetchModelsRoles,
   fetchSentinelAgentStatus,
   fetchSentinelAgentTools,
@@ -35,6 +36,7 @@ import {
   type SentinelEvalRuns,
   type SentinelHealth,
   type SentinelLangfuseStatus,
+  type SentinelModelsLoaded,
   type SentinelModelsPresets,
   type SentinelModelsRegistry,
   type SentinelModelsRoles,
@@ -124,6 +126,15 @@ export function useSentinelModelsRoles() {
     queryKey: ["sentinel", "models", "roles"],
     queryFn: fetchModelsRoles,
     refetchInterval: 20_000,
+    retry: false,
+  });
+}
+
+export function useSentinelModelsLoaded() {
+  return useQuery<SentinelModelsLoaded>({
+    queryKey: ["sentinel", "models", "loaded"],
+    queryFn: fetchModelsLoaded,
+    refetchInterval: 15_000,
     retry: false,
   });
 }

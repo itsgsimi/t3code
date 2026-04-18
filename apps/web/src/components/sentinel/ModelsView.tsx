@@ -5,11 +5,12 @@ import {
   useApplyPreset,
   useSentinelBenchRuns,
   useSentinelModelSwap,
+  useSentinelModelsLoaded,
   useSentinelModelsPresets,
   useSentinelModelsRegistry,
   useSentinelModelsRoles,
 } from "../../sentinel/hooks";
-import type { SentinelRole } from "../../sentinel/api";
+import type { SentinelLoadedRole, SentinelRole } from "../../sentinel/api";
 import { PageCrumb, PageHeader, Tabs, type TabOption } from "./shared";
 
 /**
@@ -22,14 +23,19 @@ export function ModelsView() {
   const roles = useSentinelModelsRoles();
   const registry = useSentinelModelsRegistry();
   const presets = useSentinelModelsPresets();
+  const loaded = useSentinelModelsLoaded();
   const bench = useSentinelBenchRuns(30);
 
   const roleList = roles.data?.roles ?? [];
   const registryEntries = registry.data?.models ? Object.entries(registry.data.models) : [];
   const presetEntries = presets.data?.presets ? Object.entries(presets.data.presets) : [];
   const benchRuns = bench.data?.runs ?? [];
+  const loadedByRole = new Map<string, SentinelLoadedRole>(
+    (loaded.data?.roles ?? []).map((r) => [r.role, r]),
+  );
 
   const healthyRoles = roleList.filter((r) => r.registry_key).length;
+  const drift = (loaded.data?.roles ?? []).filter((r) => r.port && (!r.healthy || isDrifted(r)));
 
   return (
     <div className="overflow-auto">
@@ -68,7 +74,14 @@ export function ModelsView() {
         />
 
         {tab === "roles" ? (
-          <RolesTab roles={roleList} registry={registry.data?.models ?? {}} />
+          <>
+            {drift.length > 0 ? <DriftBanner drift={drift} /> : null}
+            <RolesTab
+              roles={roleList}
+              registry={registry.data?.models ?? {}}
+              loadedByRole={loadedByRole}
+            />
+          </>
         ) : null}
         {tab === "registry" ? <RegistryTab entries={registryEntries} /> : null}
         {tab === "presets" ? <PresetsTab entries={presetEntries} /> : null}
@@ -88,21 +101,67 @@ type TabKey = "roles" | "registry" | "presets" | "bench";
 
 // ---- Roles tab ------------------------------------------------------------
 
+function isDrifted(r: SentinelLoadedRole): boolean {
+  if (!r.configured_model_file || !r.loaded_model) return false;
+  const cfgFile = r.configured_model_file.split("/").pop()?.toLowerCase() ?? "";
+  const loaded = r.loaded_model.toLowerCase();
+  return cfgFile !== loaded;
+}
+
+function DriftBanner({ drift }: { drift: readonly SentinelLoadedRole[] }) {
+  return (
+    <div
+      className="mb-3 flex items-start gap-2"
+      style={{
+        background: "var(--state-degraded-bg)",
+        border: "1px solid var(--state-degraded-bg)",
+        color: "var(--state-degraded-fg)",
+        borderRadius: 6,
+        padding: "10px 14px",
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+      }}
+    >
+      <span className="ds-dot ds-dot--degraded" style={{ marginTop: 5 }} aria-hidden />
+      <div>
+        <div style={{ color: "var(--state-degraded-fg)", fontWeight: 500 }}>
+          {drift.length} role{drift.length === 1 ? "" : "s"} show runtime drift.
+        </div>
+        <div style={{ color: "var(--fg-3)", marginTop: 2 }}>
+          The llama-server on that port is either down, or running a different model than{" "}
+          <span style={{ color: "var(--fg-1)" }}>config.yaml</span> declares.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RolesTab({
   roles,
   registry,
+  loadedByRole,
 }: {
   roles: readonly SentinelRole[];
   registry: Record<string, { name?: string; port?: number; context_length?: number }>;
+  loadedByRole: Map<string, SentinelLoadedRole>;
 }) {
   if (roles.length === 0) {
     return <EmptyCard>Loading role assignments from /v1/models/roles…</EmptyCard>;
   }
   return (
     <Card>
-      <TableHead columns={["role", "model", "port", "ctx", "override", "action"]} />
+      <TableHead
+        columns={["role", "configured model", "port", "ctx", "loaded (live)", "action"]}
+        widths={["130px", "1.3fr", "70px", "60px", "1.1fr", "170px"]}
+      />
       {roles.map((r, i) => (
-        <RoleRow key={r.role} role={r} last={i === roles.length - 1} registry={registry} />
+        <RoleRow
+          key={r.role}
+          role={r}
+          last={i === roles.length - 1}
+          registry={registry}
+          loaded={loadedByRole.get(r.role)}
+        />
       ))}
     </Card>
   );
@@ -111,10 +170,12 @@ function RolesTab({
 function RoleRow({
   role,
   registry,
+  loaded,
   last,
 }: {
   role: SentinelRole;
   registry: Record<string, { name?: string; port?: number; context_length?: number }>;
+  loaded: SentinelLoadedRole | undefined;
   last: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -136,17 +197,44 @@ function RoleRow({
     }
   }
 
+  const loadedCell = (() => {
+    if (!loaded) return { state: "unknown" as const, label: "—" };
+    if (!loaded.port) return { state: "unknown" as const, label: "no port" };
+    if (!loaded.healthy) return { state: "down" as const, label: "port down" };
+    if (loaded.loaded_model) {
+      const drift = isDrifted(loaded);
+      return {
+        state: drift ? ("degraded" as const) : ("healthy" as const),
+        label: loaded.loaded_model,
+      };
+    }
+    return { state: "busy" as const, label: "up · unknown model" };
+  })();
+
   return (
     <div
       className="grid items-center gap-3"
       style={{
-        gridTemplateColumns: "140px 1fr 80px 60px 100px 220px",
+        gridTemplateColumns: "130px 1.3fr 70px 60px 1.1fr 170px",
         padding: "10px 14px",
         borderBottom: last ? "none" : "1px solid var(--border-soft)",
         fontSize: 12.5,
       }}
     >
-      <span style={{ color: "var(--fg-1)" }}>{role.role}</span>
+      <div className="flex flex-col gap-0.5">
+        <span style={{ color: "var(--fg-1)" }}>{role.role}</span>
+        {role.overridden ? (
+          <span
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              color: "var(--state-healthy-fg)",
+            }}
+          >
+            override
+          </span>
+        ) : null}
+      </div>
       <span
         className="flex items-center gap-[6px]"
         style={{ fontFamily: "var(--font-mono)", color: "var(--fg-1)" }}
@@ -159,11 +247,31 @@ function RoleRow({
       </span>
       <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-3)" }}>{port}</span>
       <span style={{ fontFamily: "var(--font-mono)", color: "var(--fg-3)" }}>{ctx}</span>
-      {role.overridden ? (
-        <Pill state="healthy">override</Pill>
-      ) : (
-        <span style={{ color: "var(--fg-4)", fontSize: 11 }}>default</span>
-      )}
+      <span
+        className="flex items-center gap-[6px]"
+        style={{
+          fontFamily: "var(--font-mono)",
+          color:
+            loadedCell.state === "down"
+              ? "var(--state-down-fg)"
+              : loadedCell.state === "degraded"
+                ? "var(--state-degraded-fg)"
+                : loadedCell.state === "healthy"
+                  ? "var(--fg-1)"
+                  : "var(--fg-4)",
+          wordBreak: "break-all",
+        }}
+        title={
+          loaded?.detail
+            ? `${loaded.detail}`
+            : isDrifted(loaded ?? ({} as SentinelLoadedRole))
+              ? `drift: configured ${loaded?.configured_model_file}`
+              : undefined
+        }
+      >
+        <span className={`ds-dot ds-dot--${loadedCell.state}`} aria-hidden />
+        {loadedCell.label}
+      </span>
       {editing ? (
         <div className="flex items-center gap-1">
           <select

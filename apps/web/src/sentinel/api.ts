@@ -245,6 +245,23 @@ export function fetchModelsRegistry(): Promise<SentinelModelsRegistry> {
 export function fetchModelsRoles(): Promise<SentinelModelsRoles> {
   return get<SentinelModelsRoles>("/v1/models/roles");
 }
+export function fetchModelsLoaded(): Promise<SentinelModelsLoaded> {
+  return get<SentinelModelsLoaded>("/v1/models/loaded");
+}
+
+export interface SentinelLoadedRole {
+  role: string;
+  port: number | null;
+  configured_registry_key: string | null;
+  configured_model_name: string | null;
+  configured_model_file: string | null;
+  healthy: boolean;
+  loaded_model: string | null;
+  detail: string | null;
+}
+export interface SentinelModelsLoaded {
+  roles: SentinelLoadedRole[];
+}
 export function fetchModelsPresets(): Promise<SentinelModelsPresets> {
   return get<SentinelModelsPresets>("/v1/models/presets");
 }
