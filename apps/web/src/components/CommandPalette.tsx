@@ -424,7 +424,7 @@ function OpenCommandPaletteDialog() {
       );
       if (latestThread) {
         await navigate({
-          to: "/sessions/$environmentId/$threadId",
+          to: "/code/$environmentId/$threadId",
           params: buildThreadRouteParams(
             scopeThreadRef(latestThread.environmentId, latestThread.id),
           ),
@@ -509,7 +509,7 @@ function OpenCommandPaletteDialog() {
         renderTrailingContent: (thread) => <ThreadRowTrailingStatus thread={thread} />,
         runThread: async (thread) => {
           await navigate({
-            to: "/sessions/$environmentId/$threadId",
+            to: "/code/$environmentId/$threadId",
             params: buildThreadRouteParams(scopeThreadRef(thread.environmentId, thread.id)),
           });
         },
@@ -756,7 +756,7 @@ function OpenCommandPaletteDialog() {
         );
         if (latestThread) {
           await navigate({
-            to: "/sessions/$environmentId/$threadId",
+            to: "/code/$environmentId/$threadId",
             params: buildThreadRouteParams(
               scopeThreadRef(latestThread.environmentId, latestThread.id),
             ),

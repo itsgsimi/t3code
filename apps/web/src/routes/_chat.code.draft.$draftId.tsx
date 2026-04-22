@@ -40,7 +40,7 @@ function DraftChatThreadRouteView() {
       return;
     }
     void navigate({
-      to: "/sessions/$environmentId/$threadId",
+      to: "/code/$environmentId/$threadId",
       params: buildThreadRouteParams(canonicalThreadRef),
       replace: true,
     });
@@ -81,6 +81,6 @@ function DraftChatThreadRouteView() {
   );
 }
 
-export const Route = createFileRoute("/_chat/sessions/draft/$draftId")({
+export const Route = createFileRoute("/_chat/code/draft/$draftId")({
   component: DraftChatThreadRouteView,
 });

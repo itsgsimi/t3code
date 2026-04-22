@@ -1523,7 +1523,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       }
       setSelectionAnchor(scopedThreadKey(threadRef));
       void router.navigate({
-        to: "/sessions/$environmentId/$threadId",
+        to: "/code/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),
       });
     },
@@ -1559,7 +1559,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       }
       setSelectionAnchor(threadKey);
       void router.navigate({
-        to: "/sessions/$environmentId/$threadId",
+        to: "/code/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),
       });
     },
@@ -2351,7 +2351,7 @@ const SidebarChromeHeader = memo(function SidebarChromeHeader({
             <Link
               aria-label="Sessions"
               className="ml-1 flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md font-mono text-xs tracking-[0.08em] text-muted-foreground uppercase outline-hidden ring-ring transition-colors hover:text-foreground focus-visible:ring-2"
-              to="/sessions"
+              to="/code"
             >
               Sessions
             </Link>
@@ -2827,7 +2827,7 @@ export default function Sidebar() {
       }
       setSelectionAnchor(scopedThreadKey(threadRef));
       void navigate({
-        to: "/sessions/$environmentId/$threadId",
+        to: "/code/$environmentId/$threadId",
         params: buildThreadRouteParams(threadRef),
       });
     },

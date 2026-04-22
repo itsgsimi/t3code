@@ -190,7 +190,7 @@ export function useThreadActions() {
           );
           if (fallbackThread) {
             await router.navigate({
-              to: "/sessions/$environmentId/$threadId",
+              to: "/code/$environmentId/$threadId",
               params: buildThreadRouteParams(
                 scopeThreadRef(fallbackThread.environmentId, fallbackThread.id),
               ),

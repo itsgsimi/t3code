@@ -16,15 +16,15 @@ import { Route as SettingsGeneralRouteImport } from './routes/settings.general'
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SettingsArchivedRouteImport } from './routes/settings.archived'
 import { Route as ChatStackRouteImport } from './routes/_chat.stack'
-import { Route as ChatSessionsRouteImport } from './routes/_chat.sessions'
 import { Route as ChatModelsRouteImport } from './routes/_chat.models'
 import { Route as ChatHomeRouteImport } from './routes/_chat.home'
 import { Route as ChatDeployRouteImport } from './routes/_chat.deploy'
 import { Route as ChatConfigRouteImport } from './routes/_chat.config'
+import { Route as ChatCodeRouteImport } from './routes/_chat.code'
 import { Route as ChatAgentsRouteImport } from './routes/_chat.agents'
-import { Route as ChatSessionsIndexRouteImport } from './routes/_chat.sessions.index'
-import { Route as ChatSessionsDraftDraftIdRouteImport } from './routes/_chat.sessions.draft.$draftId'
-import { Route as ChatSessionsEnvironmentIdThreadIdRouteImport } from './routes/_chat.sessions.$environmentId.$threadId'
+import { Route as ChatCodeIndexRouteImport } from './routes/_chat.code.index'
+import { Route as ChatCodeDraftDraftIdRouteImport } from './routes/_chat.code.draft.$draftId'
+import { Route as ChatCodeEnvironmentIdThreadIdRouteImport } from './routes/_chat.code.$environmentId.$threadId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -60,11 +60,6 @@ const ChatStackRoute = ChatStackRouteImport.update({
   path: '/stack',
   getParentRoute: () => ChatRoute,
 } as any)
-const ChatSessionsRoute = ChatSessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
-  getParentRoute: () => ChatRoute,
-} as any)
 const ChatModelsRoute = ChatModelsRouteImport.update({
   id: '/models',
   path: '/models',
@@ -85,45 +80,49 @@ const ChatConfigRoute = ChatConfigRouteImport.update({
   path: '/config',
   getParentRoute: () => ChatRoute,
 } as any)
+const ChatCodeRoute = ChatCodeRouteImport.update({
+  id: '/code',
+  path: '/code',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ChatAgentsRoute = ChatAgentsRouteImport.update({
   id: '/agents',
   path: '/agents',
   getParentRoute: () => ChatRoute,
 } as any)
-const ChatSessionsIndexRoute = ChatSessionsIndexRouteImport.update({
+const ChatCodeIndexRoute = ChatCodeIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => ChatSessionsRoute,
+  getParentRoute: () => ChatCodeRoute,
 } as any)
-const ChatSessionsDraftDraftIdRoute =
-  ChatSessionsDraftDraftIdRouteImport.update({
-    id: '/draft/$draftId',
-    path: '/draft/$draftId',
-    getParentRoute: () => ChatSessionsRoute,
-  } as any)
-const ChatSessionsEnvironmentIdThreadIdRoute =
-  ChatSessionsEnvironmentIdThreadIdRouteImport.update({
+const ChatCodeDraftDraftIdRoute = ChatCodeDraftDraftIdRouteImport.update({
+  id: '/draft/$draftId',
+  path: '/draft/$draftId',
+  getParentRoute: () => ChatCodeRoute,
+} as any)
+const ChatCodeEnvironmentIdThreadIdRoute =
+  ChatCodeEnvironmentIdThreadIdRouteImport.update({
     id: '/$environmentId/$threadId',
     path: '/$environmentId/$threadId',
-    getParentRoute: () => ChatSessionsRoute,
+    getParentRoute: () => ChatCodeRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
   '/settings': typeof SettingsRouteWithChildren
   '/agents': typeof ChatAgentsRoute
+  '/code': typeof ChatCodeRouteWithChildren
   '/config': typeof ChatConfigRoute
   '/deploy': typeof ChatDeployRoute
   '/home': typeof ChatHomeRoute
   '/models': typeof ChatModelsRoute
-  '/sessions': typeof ChatSessionsRouteWithChildren
   '/stack': typeof ChatStackRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/general': typeof SettingsGeneralRoute
-  '/sessions/': typeof ChatSessionsIndexRoute
-  '/sessions/$environmentId/$threadId': typeof ChatSessionsEnvironmentIdThreadIdRoute
-  '/sessions/draft/$draftId': typeof ChatSessionsDraftDraftIdRoute
+  '/code/': typeof ChatCodeIndexRoute
+  '/code/$environmentId/$threadId': typeof ChatCodeEnvironmentIdThreadIdRoute
+  '/code/draft/$draftId': typeof ChatCodeDraftDraftIdRoute
 }
 export interface FileRoutesByTo {
   '/settings': typeof SettingsRouteWithChildren
@@ -137,28 +136,28 @@ export interface FileRoutesByTo {
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/': typeof ChatIndexRoute
-  '/sessions': typeof ChatSessionsIndexRoute
-  '/sessions/$environmentId/$threadId': typeof ChatSessionsEnvironmentIdThreadIdRoute
-  '/sessions/draft/$draftId': typeof ChatSessionsDraftDraftIdRoute
+  '/code': typeof ChatCodeIndexRoute
+  '/code/$environmentId/$threadId': typeof ChatCodeEnvironmentIdThreadIdRoute
+  '/code/draft/$draftId': typeof ChatCodeDraftDraftIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
   '/settings': typeof SettingsRouteWithChildren
   '/_chat/agents': typeof ChatAgentsRoute
+  '/_chat/code': typeof ChatCodeRouteWithChildren
   '/_chat/config': typeof ChatConfigRoute
   '/_chat/deploy': typeof ChatDeployRoute
   '/_chat/home': typeof ChatHomeRoute
   '/_chat/models': typeof ChatModelsRoute
-  '/_chat/sessions': typeof ChatSessionsRouteWithChildren
   '/_chat/stack': typeof ChatStackRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/_chat/': typeof ChatIndexRoute
-  '/_chat/sessions/': typeof ChatSessionsIndexRoute
-  '/_chat/sessions/$environmentId/$threadId': typeof ChatSessionsEnvironmentIdThreadIdRoute
-  '/_chat/sessions/draft/$draftId': typeof ChatSessionsDraftDraftIdRoute
+  '/_chat/code/': typeof ChatCodeIndexRoute
+  '/_chat/code/$environmentId/$threadId': typeof ChatCodeEnvironmentIdThreadIdRoute
+  '/_chat/code/draft/$draftId': typeof ChatCodeDraftDraftIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -166,18 +165,18 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/agents'
+    | '/code'
     | '/config'
     | '/deploy'
     | '/home'
     | '/models'
-    | '/sessions'
     | '/stack'
     | '/settings/archived'
     | '/settings/connections'
     | '/settings/general'
-    | '/sessions/'
-    | '/sessions/$environmentId/$threadId'
-    | '/sessions/draft/$draftId'
+    | '/code/'
+    | '/code/$environmentId/$threadId'
+    | '/code/draft/$draftId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/settings'
@@ -191,27 +190,27 @@ export interface FileRouteTypes {
     | '/settings/connections'
     | '/settings/general'
     | '/'
-    | '/sessions'
-    | '/sessions/$environmentId/$threadId'
-    | '/sessions/draft/$draftId'
+    | '/code'
+    | '/code/$environmentId/$threadId'
+    | '/code/draft/$draftId'
   id:
     | '__root__'
     | '/_chat'
     | '/settings'
     | '/_chat/agents'
+    | '/_chat/code'
     | '/_chat/config'
     | '/_chat/deploy'
     | '/_chat/home'
     | '/_chat/models'
-    | '/_chat/sessions'
     | '/_chat/stack'
     | '/settings/archived'
     | '/settings/connections'
     | '/settings/general'
     | '/_chat/'
-    | '/_chat/sessions/'
-    | '/_chat/sessions/$environmentId/$threadId'
-    | '/_chat/sessions/draft/$draftId'
+    | '/_chat/code/'
+    | '/_chat/code/$environmentId/$threadId'
+    | '/_chat/code/draft/$draftId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -270,13 +269,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatStackRouteImport
       parentRoute: typeof ChatRoute
     }
-    '/_chat/sessions': {
-      id: '/_chat/sessions'
-      path: '/sessions'
-      fullPath: '/sessions'
-      preLoaderRoute: typeof ChatSessionsRouteImport
-      parentRoute: typeof ChatRoute
-    }
     '/_chat/models': {
       id: '/_chat/models'
       path: '/models'
@@ -305,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatConfigRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/_chat/code': {
+      id: '/_chat/code'
+      path: '/code'
+      fullPath: '/code'
+      preLoaderRoute: typeof ChatCodeRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/_chat/agents': {
       id: '/_chat/agents'
       path: '/agents'
@@ -312,65 +311,64 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatAgentsRouteImport
       parentRoute: typeof ChatRoute
     }
-    '/_chat/sessions/': {
-      id: '/_chat/sessions/'
+    '/_chat/code/': {
+      id: '/_chat/code/'
       path: '/'
-      fullPath: '/sessions/'
-      preLoaderRoute: typeof ChatSessionsIndexRouteImport
-      parentRoute: typeof ChatSessionsRoute
+      fullPath: '/code/'
+      preLoaderRoute: typeof ChatCodeIndexRouteImport
+      parentRoute: typeof ChatCodeRoute
     }
-    '/_chat/sessions/draft/$draftId': {
-      id: '/_chat/sessions/draft/$draftId'
+    '/_chat/code/draft/$draftId': {
+      id: '/_chat/code/draft/$draftId'
       path: '/draft/$draftId'
-      fullPath: '/sessions/draft/$draftId'
-      preLoaderRoute: typeof ChatSessionsDraftDraftIdRouteImport
-      parentRoute: typeof ChatSessionsRoute
+      fullPath: '/code/draft/$draftId'
+      preLoaderRoute: typeof ChatCodeDraftDraftIdRouteImport
+      parentRoute: typeof ChatCodeRoute
     }
-    '/_chat/sessions/$environmentId/$threadId': {
-      id: '/_chat/sessions/$environmentId/$threadId'
+    '/_chat/code/$environmentId/$threadId': {
+      id: '/_chat/code/$environmentId/$threadId'
       path: '/$environmentId/$threadId'
-      fullPath: '/sessions/$environmentId/$threadId'
-      preLoaderRoute: typeof ChatSessionsEnvironmentIdThreadIdRouteImport
-      parentRoute: typeof ChatSessionsRoute
+      fullPath: '/code/$environmentId/$threadId'
+      preLoaderRoute: typeof ChatCodeEnvironmentIdThreadIdRouteImport
+      parentRoute: typeof ChatCodeRoute
     }
   }
 }
 
-interface ChatSessionsRouteChildren {
-  ChatSessionsIndexRoute: typeof ChatSessionsIndexRoute
-  ChatSessionsEnvironmentIdThreadIdRoute: typeof ChatSessionsEnvironmentIdThreadIdRoute
-  ChatSessionsDraftDraftIdRoute: typeof ChatSessionsDraftDraftIdRoute
+interface ChatCodeRouteChildren {
+  ChatCodeIndexRoute: typeof ChatCodeIndexRoute
+  ChatCodeEnvironmentIdThreadIdRoute: typeof ChatCodeEnvironmentIdThreadIdRoute
+  ChatCodeDraftDraftIdRoute: typeof ChatCodeDraftDraftIdRoute
 }
 
-const ChatSessionsRouteChildren: ChatSessionsRouteChildren = {
-  ChatSessionsIndexRoute: ChatSessionsIndexRoute,
-  ChatSessionsEnvironmentIdThreadIdRoute:
-    ChatSessionsEnvironmentIdThreadIdRoute,
-  ChatSessionsDraftDraftIdRoute: ChatSessionsDraftDraftIdRoute,
+const ChatCodeRouteChildren: ChatCodeRouteChildren = {
+  ChatCodeIndexRoute: ChatCodeIndexRoute,
+  ChatCodeEnvironmentIdThreadIdRoute: ChatCodeEnvironmentIdThreadIdRoute,
+  ChatCodeDraftDraftIdRoute: ChatCodeDraftDraftIdRoute,
 }
 
-const ChatSessionsRouteWithChildren = ChatSessionsRoute._addFileChildren(
-  ChatSessionsRouteChildren,
+const ChatCodeRouteWithChildren = ChatCodeRoute._addFileChildren(
+  ChatCodeRouteChildren,
 )
 
 interface ChatRouteChildren {
   ChatAgentsRoute: typeof ChatAgentsRoute
+  ChatCodeRoute: typeof ChatCodeRouteWithChildren
   ChatConfigRoute: typeof ChatConfigRoute
   ChatDeployRoute: typeof ChatDeployRoute
   ChatHomeRoute: typeof ChatHomeRoute
   ChatModelsRoute: typeof ChatModelsRoute
-  ChatSessionsRoute: typeof ChatSessionsRouteWithChildren
   ChatStackRoute: typeof ChatStackRoute
   ChatIndexRoute: typeof ChatIndexRoute
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
   ChatAgentsRoute: ChatAgentsRoute,
+  ChatCodeRoute: ChatCodeRouteWithChildren,
   ChatConfigRoute: ChatConfigRoute,
   ChatDeployRoute: ChatDeployRoute,
   ChatHomeRoute: ChatHomeRoute,
   ChatModelsRoute: ChatModelsRoute,
-  ChatSessionsRoute: ChatSessionsRouteWithChildren,
   ChatStackRoute: ChatStackRoute,
   ChatIndexRoute: ChatIndexRoute,
 }

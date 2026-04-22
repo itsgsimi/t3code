@@ -1,109 +1,127 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import {
   useSentinelAgentStatus,
   useSentinelConfigSection,
   useSentinelDeployHosts,
 } from "../../sentinel/hooks";
+import { DetailSheet, useDetailSheetParam } from "./DetailSheet";
 import { PageCrumb, PageHeader } from "./shared";
 
 /**
  * Deploy — hosts declared in config.yaml host_aliases.
- * Click a card to expand service details for that host (derived from
- * mcp_servers whose transport targets the host's IP).
+ * Selecting a card opens a right-side DetailSheet with per-service details
+ * derived from mcp_servers whose transport targets the host's IP.
  */
 export function DeployView() {
   const hosts = useSentinelDeployHosts();
   const agent = useSentinelAgentStatus();
   const mcpSection = useSentinelConfigSection("mcp_servers");
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const urlSelected = useDetailSheetParam("deploy");
+  const [selectedId, setSelectedId] = useState<string | null>(urlSelected);
 
   const hostList = hosts.data?.hosts ?? [];
   const mcpServers = (mcpSection.data?.value ?? {}) as Record<string, Record<string, unknown>>;
 
+  const decorated = hostList.map((h) => {
+    const id = `${h.alias}-${h.host}`;
+    const services = servicesForHost(h.host, mcpServers, agent.data?.mcp_servers);
+    return { id, alias: h.alias, host: h.host, services };
+  });
+  const selected = decorated.find((d) => d.id === selectedId) ?? null;
+
   return (
-    <div className="overflow-auto">
-      <div style={pageStyle}>
-        <PageCrumb>Sentinel / Deploy</PageCrumb>
-        <PageHeader
-          title="Deploy"
-          chip={{
-            state: hostList.length === 0 ? "unknown" : "healthy",
-            text:
-              hostList.length === 0
-                ? hosts.isError
-                  ? "API offline"
-                  : "loading…"
-                : `${hostList.length} hosts declared`,
-          }}
-          subtitle="Hosts Sentinel is aware of (from host_aliases in config.yaml). Click a card for details."
-        />
+    <div className="flex min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-auto">
+        <div style={pageStyle}>
+          <PageCrumb>Sentinel / Deploy</PageCrumb>
+          <PageHeader
+            title="Deploy"
+            chip={{
+              state: hostList.length === 0 ? "unknown" : "healthy",
+              text:
+                hostList.length === 0
+                  ? hosts.isError
+                    ? "API offline"
+                    : "loading…"
+                  : `${hostList.length} hosts declared`,
+            }}
+            subtitle="Hosts Sentinel is aware of (from host_aliases in config.yaml). Click a card for details."
+          />
 
-        <div className="flex items-center" style={{ marginBottom: 14 }}>
-          <span
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--fg-2)",
-              textTransform: "uppercase",
-              letterSpacing: "0.02em",
-            }}
-          >
-            Hosts
-          </span>
-          <div style={{ flex: 1 }} />
-          <button
-            type="button"
-            className="flex cursor-default items-center gap-2 border-0"
-            disabled
-            style={{
-              padding: "6px 12px",
-              borderRadius: 5,
-              background: "var(--canvas-3)",
-              color: "var(--fg-4)",
-              border: "1px solid var(--border-soft)",
-              fontSize: 12.5,
-              fontWeight: 500,
-            }}
-            title="Provisioning via web not wired yet — use `sentinel provision <host>`"
-          >
-            <Plus size={14} />
-            Provision host (CLI only)
-          </button>
-        </div>
-
-        {hostList.length === 0 ? (
-          <EmptyCard>
-            {hosts.isError ? "Can't reach the Sentinel API." : "No hosts declared in host_aliases."}
-          </EmptyCard>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              gap: 12,
-            }}
-          >
-            {hostList.map((h) => {
-              const id = `${h.alias}-${h.host}`;
-              const services = servicesForHost(h.host, mcpServers, agent.data?.mcp_servers);
-              const isExpanded = expanded === id;
-              return (
-                <HostCard
-                  key={id}
-                  alias={h.alias}
-                  host={h.host}
-                  services={services}
-                  expanded={isExpanded}
-                  onToggle={() => setExpanded(isExpanded ? null : id)}
-                />
-              );
-            })}
+          <div className="flex items-center" style={{ marginBottom: 14 }}>
+            <span
+              style={{
+                fontFamily: "var(--font-display)",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--fg-2)",
+                textTransform: "uppercase",
+                letterSpacing: "0.02em",
+              }}
+            >
+              Hosts
+            </span>
+            <div style={{ flex: 1 }} />
+            <button
+              type="button"
+              className="flex cursor-default items-center gap-2 border-0"
+              disabled
+              style={{
+                padding: "6px 12px",
+                borderRadius: 5,
+                background: "var(--canvas-3)",
+                color: "var(--fg-4)",
+                border: "1px solid var(--border-soft)",
+                fontSize: 12.5,
+                fontWeight: 500,
+              }}
+              title="Provisioning via web not wired yet — use `sentinel provision <host>`"
+            >
+              <Plus size={14} />
+              Provision host (CLI only)
+            </button>
           </div>
-        )}
+
+          {decorated.length === 0 ? (
+            <EmptyCard>
+              {hosts.isError
+                ? "Can't reach the Sentinel API — run `uv run sentinel api up` and refresh."
+                : "No hosts declared. Add entries under `host_aliases:` in config.yaml (name → IP or hostname), then use `sentinel provision <host>` from the CLI."}
+            </EmptyCard>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                gap: 12,
+              }}
+            >
+              {decorated.map((d) => (
+                <HostCard
+                  key={d.id}
+                  alias={d.alias}
+                  host={d.host}
+                  services={d.services}
+                  selected={selectedId === d.id}
+                  onSelect={() => setSelectedId(d.id)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      <DetailSheet
+        open={!!selected}
+        title={selected?.alias ?? ""}
+        eyebrow="host"
+        onClose={() => setSelectedId(null)}
+        persist={{ key: "deploy", value: selected?.id ?? null }}
+      >
+        {selected ? <HostDetail host={selected.host} services={selected.services} /> : null}
+      </DetailSheet>
     </div>
   );
 }
@@ -146,9 +164,6 @@ function servicesForHost(
 }
 
 function matchesHost(configuredHost: string, hostIp: string): boolean {
-  // "localhost" + "127.0.0.1" both live on the local box — treat the
-  // primary workstation entry (often the LAN IP) as a local host when the
-  // configured_host is "localhost".
   const normalized = configuredHost.toLowerCase();
   if (normalized === hostIp) return true;
   return false;
@@ -158,14 +173,14 @@ function HostCard({
   alias,
   host,
   services,
-  expanded,
-  onToggle,
+  selected,
+  onSelect,
 }: {
   alias: string;
   host: string;
   services: HostService[];
-  expanded: boolean;
-  onToggle: () => void;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const state =
     services.length === 0
@@ -178,15 +193,14 @@ function HostCard({
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={onSelect}
       className="cursor-pointer border-0 text-left"
       style={{
-        background: "var(--canvas-1)",
-        border: `1px solid ${expanded ? "var(--border-default)" : "var(--border-soft)"}`,
+        background: selected ? "var(--canvas-2)" : "var(--canvas-1)",
+        border: `1px solid ${selected ? "var(--border-default)" : "var(--border-soft)"}`,
         borderRadius: 8,
         overflow: "hidden",
         width: "100%",
-        gridColumn: expanded ? "1 / -1" : undefined,
       }}
     >
       <div
@@ -201,13 +215,10 @@ function HostCard({
             {alias}
           </span>
           <span
-            className="ml-auto flex items-center gap-2"
+            className="ml-auto"
             style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--fg-3)" }}
           >
             {host}
-            <span style={{ color: "var(--fg-3)", display: "flex" }}>
-              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            </span>
           </span>
         </div>
         <div style={{ fontSize: 11.5, color: "var(--fg-3)", marginTop: 4 }}>
@@ -263,7 +274,6 @@ function HostCard({
             ))}
           </ul>
         )}
-        {expanded ? <HostDetail host={host} services={services} /> : null}
       </div>
     </button>
   );
@@ -271,40 +281,70 @@ function HostCard({
 
 function HostDetail({ host, services }: { host: string; services: HostService[] }) {
   return (
-    <div
-      style={{
-        margin: "0 14px 14px",
-        padding: 12,
-        background: "var(--canvas-2)",
-        border: "1px solid var(--border-soft)",
-        borderRadius: 6,
-      }}
-    >
-      <KV label="ip" value={host} />
-      <KV label="service count" value={String(services.length)} />
-      {services.map((svc) => (
-        <div key={svc.name} style={{ marginTop: 10 }}>
+    <div>
+      <div
+        style={{
+          padding: 12,
+          background: "var(--canvas-2)",
+          border: "1px solid var(--border-soft)",
+          borderRadius: 6,
+          marginBottom: 12,
+        }}
+      >
+        <KV label="ip" value={host} />
+        <KV label="service count" value={String(services.length)} />
+      </div>
+      {services.length === 0 ? (
+        <div
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            color: "var(--fg-4)",
+            padding: "8px 0",
+          }}
+        >
+          No MCP servers point at this host.
+        </div>
+      ) : (
+        services.map((svc) => (
           <div
+            key={svc.name}
             style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: 12.5,
-              color: "var(--fg-1)",
-              marginBottom: 6,
+              padding: 12,
+              background: "var(--canvas-2)",
+              border: "1px solid var(--border-soft)",
+              borderRadius: 6,
+              marginBottom: 10,
             }}
           >
-            {svc.name}
+            <div
+              className="mb-2 flex items-center gap-2"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 12.5,
+                color: "var(--fg-1)",
+              }}
+            >
+              <span
+                className={`ds-dot ds-dot--${
+                  svc.healthy === true ? "healthy" : svc.healthy === false ? "down" : "unknown"
+                }`}
+                aria-hidden
+              />
+              {svc.name}
+            </div>
+            <KV label="transport" value={svc.transport} />
+            {svc.port ? <KV label="port" value={`:${svc.port}`} /> : null}
+            {svc.endpoint ? <KV label="endpoint" value={svc.endpoint} /> : null}
+            <KV
+              label="health"
+              value={
+                svc.healthy === true ? "healthy" : svc.healthy === false ? "not connected" : "unknown"
+              }
+            />
           </div>
-          <KV label="transport" value={svc.transport} />
-          {svc.port ? <KV label="port" value={`:${svc.port}`} /> : null}
-          {svc.endpoint ? <KV label="endpoint" value={svc.endpoint} /> : null}
-          <KV
-            label="health"
-            value={
-              svc.healthy === true ? "healthy" : svc.healthy === false ? "not connected" : "unknown"
-            }
-          />
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }

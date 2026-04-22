@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Bot, Cloud, Cpu, FileCog, Home, Layers, ListTodo, type LucideIcon } from "lucide-react";
 
-type SectionKey = "home" | "sessions" | "stack" | "models" | "agents" | "deploy" | "config";
+type SectionKey = "home" | "code" | "stack" | "models" | "agents" | "deploy" | "config";
 
 interface NavEntry {
   key: SectionKey;
@@ -22,11 +22,11 @@ const NAV: readonly NavEntry[] = [
     matches: (p) => p === "/home" || p === "/home/",
   },
   {
-    key: "sessions",
-    label: "Sessions",
-    to: "/sessions",
+    key: "code",
+    label: "Code",
+    to: "/code",
     icon: ListTodo,
-    matches: (p) => p === "/sessions" || p.startsWith("/sessions/"),
+    matches: (p) => p === "/code" || p.startsWith("/code/"),
   },
   {
     key: "stack",
@@ -109,9 +109,9 @@ function RailButton({ entry, active }: { entry: NavEntry; active: boolean }) {
 
 /**
  * Route-matching for layout concerns outside the rail. True when the current
- * pathname is inside the Sessions surface — where the thread sidebar belongs.
+ * pathname is inside the Code surface — where the thread sidebar belongs.
  */
 export function isSessionsRoute(pathname: string): boolean {
-  const entry = NAV.find((n) => n.key === "sessions");
+  const entry = NAV.find((n) => n.key === "code");
   return entry?.matches(pathname) ?? false;
 }

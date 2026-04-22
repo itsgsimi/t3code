@@ -29,6 +29,6 @@ function SessionsLayout() {
   );
 }
 
-export const Route = createFileRoute("/_chat/sessions")({
+export const Route = createFileRoute("/_chat/code")({
   component: SessionsLayout,
 });

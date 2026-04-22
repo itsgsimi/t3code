@@ -6,6 +6,6 @@ function ChatIndexRouteView() {
   return <NoActiveThreadState />;
 }
 
-export const Route = createFileRoute("/_chat/sessions/")({
+export const Route = createFileRoute("/_chat/code/")({
   component: ChatIndexRouteView,
 });

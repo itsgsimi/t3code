@@ -20,6 +20,7 @@ import {
 } from "../components/WebSocketConnectionSurface";
 import { Button } from "../components/ui/button";
 import { AnchoredToastProvider, ToastProvider, toastManager } from "../components/ui/toast";
+import { ConfirmProvider } from "../components/sentinel/primitives";
 import { resolveAndPersistPreferredEditor } from "../editorPreferences";
 import { readLocalApi } from "../localApi";
 import { useSettings } from "../hooks/useSettings";
@@ -87,19 +88,21 @@ function RootRouteView() {
   return (
     <ToastProvider>
       <AnchoredToastProvider>
-        <AuthenticatedTracingBootstrap />
-        <ServerStateBootstrap />
-        <EnvironmentConnectionManagerBootstrap />
-        <EventRouter />
-        <WebSocketConnectionCoordinator />
-        <SlowRpcAckToastCoordinator />
-        <WebSocketConnectionSurface>
-          <CommandPalette>
-            <AppSidebarLayout>
-              <Outlet />
-            </AppSidebarLayout>
-          </CommandPalette>
-        </WebSocketConnectionSurface>
+        <ConfirmProvider>
+          <AuthenticatedTracingBootstrap />
+          <ServerStateBootstrap />
+          <EnvironmentConnectionManagerBootstrap />
+          <EventRouter />
+          <WebSocketConnectionCoordinator />
+          <SlowRpcAckToastCoordinator />
+          <WebSocketConnectionSurface>
+            <CommandPalette>
+              <AppSidebarLayout>
+                <Outlet />
+              </AppSidebarLayout>
+            </CommandPalette>
+          </WebSocketConnectionSurface>
+        </ConfirmProvider>
       </AnchoredToastProvider>
     </ToastProvider>
   );
@@ -247,14 +250,14 @@ function EventRouter() {
       // Only auto-jump to the bootstrap thread from the Sentinel root or the
       // Sessions index — never yank the user out of Home, Stack, etc.
       const current = readPathname();
-      if (current !== "/" && current !== "/sessions" && current !== "/sessions/") {
+      if (current !== "/" && current !== "/code" && current !== "/code/") {
         return;
       }
       if (handledBootstrapThreadIdRef.current === payload.bootstrapThreadId) {
         return;
       }
       await navigate({
-        to: "/sessions/$environmentId/$threadId",
+        to: "/code/$environmentId/$threadId",
         params: {
           environmentId: payload.environment.environmentId,
           threadId: payload.bootstrapThreadId,

@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Send, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { History, Send, SquarePen, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { useBeardyDrawerStore } from "../../sentinel/beardyDrawerStore";
-import { useSentinelHealth, useSentinelQueryMutation } from "../../sentinel/hooks";
+import {
+  useSentinelDreamRuns,
+  useSentinelHealth,
+  useSentinelQueryMutation,
+  useSentinelSessionDetail,
+  useSentinelSessions,
+} from "../../sentinel/hooks";
 
 interface LiveTurn {
   id: string;
@@ -21,14 +29,26 @@ interface LiveTurn {
  */
 export function BeardyDrawer() {
   const open = useBeardyDrawerStore((state) => state.open);
+  const detailOpen = useBeardyDrawerStore((state) => state.detailSheetOpen);
   const toggle = useBeardyDrawerStore((state) => state.toggle);
   const health = useSentinelHealth();
   const query = useSentinelQueryMutation();
+  const dream = useSentinelDreamRuns();
 
   const [draft, setDraft] = useState("");
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [liveTurns, setLiveTurns] = useState<LiveTurn[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [restoreId, setRestoreId] = useState<string | undefined>();
   const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  const sessions = useSentinelSessions(20);
+  const sessionDetail = useSentinelSessionDetail(restoreId);
+
+  const apiSessions = useMemo(
+    () => (sessions.data ?? []).filter((s) => !s.session_id.startsWith("discord:")),
+    [sessions.data],
+  );
 
   useEffect(() => {
     if (open && bodyRef.current) {
@@ -36,8 +56,28 @@ export function BeardyDrawer() {
     }
   }, [open, liveTurns.length]);
 
-  if (!open) {
+  useEffect(() => {
+    if (!restoreId || !sessionDetail.data) return;
+    const msgs = sessionDetail.data.recent_messages ?? [];
+    const hydrated: LiveTurn[] = msgs.map((m, idx) => ({
+      id: `${restoreId}-${idx}`,
+      role: m.role === "user" ? "user" : "beardy",
+      content: m.content,
+    }));
+    setLiveTurns(hydrated);
+    setSessionId(restoreId);
+    setHistoryOpen(false);
+    setRestoreId(undefined);
+  }, [restoreId, sessionDetail.data]);
+
+  if (!open || detailOpen) {
     return null;
+  }
+
+  function startNewChat() {
+    setSessionId(undefined);
+    setLiveTurns([]);
+    setHistoryOpen(false);
   }
 
   const canSend = draft.trim().length > 0 && !query.isPending;
@@ -126,6 +166,26 @@ export function BeardyDrawer() {
         <div className="flex-1" />
         <button
           type="button"
+          aria-label="New chat"
+          title="New chat"
+          onClick={startNewChat}
+          className="cursor-pointer border-0 bg-transparent p-1.5 transition-colors"
+          style={{ color: "var(--fg-3)" }}
+        >
+          <SquarePen size={14} />
+        </button>
+        <button
+          type="button"
+          aria-label="History"
+          title="History"
+          onClick={() => setHistoryOpen((v) => !v)}
+          className="cursor-pointer border-0 bg-transparent p-1.5 transition-colors"
+          style={{ color: historyOpen ? "var(--ember-400)" : "var(--fg-3)" }}
+        >
+          <History size={14} />
+        </button>
+        <button
+          type="button"
           aria-label="Close Beardy"
           onClick={() => toggle()}
           className="cursor-pointer border-0 bg-transparent p-1.5 transition-colors"
@@ -143,25 +203,27 @@ export function BeardyDrawer() {
           fontFamily: "var(--font-mono)",
         }}
       >
-        <Divider label="example · dream cycle" />
-        <BeardySay>
-          <Glance state="healthy" label="4/4" /> Nothing regressed overnight. Ran a dream pass at
-          03:12 — wrote <Mono>14 insights</Mono>, pruned <Mono>312 stale facts</Mono> from graphiti.
-        </BeardySay>
-        <BeardySay>
-          One nag: <Mono>beardy-tool-routing</Mono> eval hasn't run in 9 days. Last score{" "}
-          <Mono>89.4%</Mono>.
-        </BeardySay>
-
-        {liveTurns.length > 0 ? <Divider label="now" /> : null}
-        {liveTurns.map((turn) =>
-          turn.role === "user" ? (
-            <UserTurn key={turn.id}>{turn.content}</UserTurn>
-          ) : (
-            <BeardySay key={turn.id} error={turn.error}>
-              {turn.content}
-            </BeardySay>
-          ),
+        {historyOpen ? (
+          <SessionHistoryList
+            sessions={apiSessions}
+            loading={sessions.isLoading}
+            activeId={sessionId}
+            onPick={(id) => setRestoreId(id)}
+          />
+        ) : (
+          <>
+            {liveTurns.length === 0 ? <AmbientGreeting dream={dream.data?.runs?.[0]} /> : null}
+            {liveTurns.length > 0 ? <Divider label="now" /> : null}
+            {liveTurns.map((turn) =>
+              turn.role === "user" ? (
+                <UserTurn key={turn.id}>{turn.content}</UserTurn>
+              ) : (
+                <BeardySay key={turn.id} error={turn.error}>
+                  <BeardyMarkdown text={turn.content} />
+                </BeardySay>
+              ),
+            )}
+          </>
         )}
         {query.isPending ? (
           <div
@@ -264,6 +326,66 @@ export function BeardyDrawer() {
   );
 }
 
+function AmbientGreeting({
+  dream,
+}: {
+  dream: import("../../sentinel/api").SentinelDreamRun | undefined;
+}) {
+  if (!dream) {
+    return (
+      <BeardySay>
+        Ready when you are. I haven't run a dream cycle yet — trigger one via{" "}
+        <Mono>sentinel dream run</Mono> or from the Agents › Dream tab.
+      </BeardySay>
+    );
+  }
+  const errorCount = dream.errors?.length ?? 0;
+  const ts = dream.last_run ? prettyWhen(dream.last_run) : "recently";
+  if (errorCount > 0) {
+    return (
+      <>
+        <Divider label={`last dream · ${ts}`} />
+        <BeardySay error>
+          <Glance state="down" label={`${errorCount} err`} /> the last dream cycle hit{" "}
+          <Mono>{errorCount} error{errorCount === 1 ? "" : "s"}</Mono>. Check{" "}
+          <Mono>Agents › Diagnostics</Mono> for the log.
+        </BeardySay>
+      </>
+    );
+  }
+  const episodes = dream.episodes_ingested ?? 0;
+  const pruned = dream.facts_pruned ?? 0;
+  const impulses = dream.impulses_stored ?? 0;
+  return (
+    <>
+      <Divider label={`last dream · ${ts}`} />
+      <BeardySay>
+        <Glance state="dream" label={`${episodes} ep`} /> ingested{" "}
+        <Mono>{episodes}</Mono> episode{episodes === 1 ? "" : "s"} and pruned{" "}
+        <Mono>{pruned}</Mono> fact{pruned === 1 ? "" : "s"}.
+        {impulses > 0 ? (
+          <>
+            {" "}
+            Filed <Mono>{impulses}</Mono> impulse{impulses === 1 ? "" : "s"} worth surfacing.
+          </>
+        ) : null}
+      </BeardySay>
+    </>
+  );
+}
+
+function prettyWhen(iso: string): string {
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return "recently";
+  const mins = Math.round((Date.now() - ts) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 36) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  return `${days}d ago`;
+}
+
 function BeardySay({ children, error }: { children: ReactNode; error?: boolean | undefined }) {
   return (
     <div
@@ -273,10 +395,156 @@ function BeardySay({ children, error }: { children: ReactNode; error?: boolean |
         lineHeight: 1.55,
         color: error ? "var(--state-down-fg)" : "var(--fg-2)",
         padding: "2px 2px",
-        whiteSpace: "pre-wrap",
       }}
     >
       {children}
+    </div>
+  );
+}
+
+function BeardyMarkdown({ text }: { text: string }) {
+  return (
+    <div className="beardy-md">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => (
+            <p style={{ margin: "0 0 6px", lineHeight: 1.55 }}>{children}</p>
+          ),
+          ul: ({ children }) => (
+            <ul style={{ margin: "0 0 6px", paddingLeft: 16 }}>{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol style={{ margin: "0 0 6px", paddingLeft: 18 }}>{children}</ol>
+          ),
+          li: ({ children }) => (
+            <li style={{ margin: "0 0 2px" }}>{children}</li>
+          ),
+          strong: ({ children }) => (
+            <strong style={{ color: "var(--fg-1)" }}>{children}</strong>
+          ),
+          em: ({ children }) => <em>{children}</em>,
+          code: ({ className, children, ...rest }) => {
+            const isBlock = (className ?? "").includes("language-");
+            if (isBlock) {
+              return (
+                <pre
+                  style={{
+                    background: "var(--canvas-2)",
+                    border: "1px solid var(--border-soft)",
+                    borderRadius: 4,
+                    padding: "6px 8px",
+                    margin: "4px 0",
+                    overflowX: "auto",
+                    fontSize: 11,
+                  }}
+                >
+                  <code {...rest}>{children}</code>
+                </pre>
+              );
+            }
+            return (
+              <code
+                style={{
+                  background: "var(--canvas-2)",
+                  border: "1px solid var(--border-soft)",
+                  borderRadius: 3,
+                  padding: "0 4px",
+                  fontSize: 11,
+                  color: "var(--fg-1)",
+                }}
+                {...rest}
+              >
+                {children}
+              </code>
+            );
+          },
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ color: "var(--ember-400)", textDecoration: "underline" }}
+            >
+              {children}
+            </a>
+          ),
+          h1: ({ children }) => (
+            <div style={{ fontWeight: 600, color: "var(--fg-1)", margin: "6px 0 4px" }}>
+              {children}
+            </div>
+          ),
+          h2: ({ children }) => (
+            <div style={{ fontWeight: 600, color: "var(--fg-1)", margin: "6px 0 4px" }}>
+              {children}
+            </div>
+          ),
+          h3: ({ children }) => (
+            <div style={{ fontWeight: 600, color: "var(--fg-1)", margin: "6px 0 4px" }}>
+              {children}
+            </div>
+          ),
+          table: ({ children }) => (
+            <div style={{ overflowX: "auto", margin: "4px 0 6px" }}>
+              <table
+                style={{
+                  borderCollapse: "collapse",
+                  fontSize: 11,
+                  width: "100%",
+                }}
+              >
+                {children}
+              </table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th
+              style={{
+                border: "1px solid var(--border-soft)",
+                padding: "3px 6px",
+                textAlign: "left",
+                background: "var(--canvas-2)",
+                color: "var(--fg-1)",
+              }}
+            >
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td
+              style={{
+                border: "1px solid var(--border-soft)",
+                padding: "3px 6px",
+              }}
+            >
+              {children}
+            </td>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote
+              style={{
+                borderLeft: "2px solid var(--border-default)",
+                margin: "4px 0",
+                padding: "0 0 0 8px",
+                color: "var(--fg-3)",
+              }}
+            >
+              {children}
+            </blockquote>
+          ),
+          hr: () => (
+            <hr
+              style={{
+                border: 0,
+                borderTop: "1px solid var(--border-soft)",
+                margin: "8px 0",
+              }}
+            />
+          ),
+        }}
+      >
+        {text}
+      </ReactMarkdown>
     </div>
   );
 }
@@ -350,5 +618,70 @@ function Divider({ label }: { label: string }) {
       <span>{label}</span>
       <span aria-hidden className="h-px flex-1" style={{ background: "var(--border-soft)" }} />
     </div>
+  );
+}
+
+function SessionHistoryList({
+  sessions,
+  loading,
+  activeId,
+  onPick,
+}: {
+  sessions: import("../../sentinel/api").SentinelSession[];
+  loading: boolean;
+  activeId: string | undefined;
+  onPick: (id: string) => void;
+}) {
+  if (loading) {
+    return (
+      <div style={{ fontSize: 11, color: "var(--fg-3)" }}>loading sessions…</div>
+    );
+  }
+  if (sessions.length === 0) {
+    return (
+      <div style={{ fontSize: 11, color: "var(--fg-3)" }}>
+        no past conversations yet.
+      </div>
+    );
+  }
+  return (
+    <>
+      <Divider label="history" />
+      <ul className="flex flex-col gap-[4px]" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {sessions.map((s) => {
+          const active = s.session_id === activeId;
+          const when = s.last_activity ?? s.started_at;
+          return (
+            <li key={s.session_id}>
+              <button
+                type="button"
+                onClick={() => onPick(s.session_id)}
+                className="w-full cursor-pointer text-left border-0"
+                style={{
+                  background: active ? "var(--canvas-3)" : "var(--canvas-2)",
+                  border: "1px solid var(--border-soft)",
+                  padding: "6px 8px",
+                  borderRadius: 5,
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11.5,
+                  color: "var(--fg-1)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 2,
+                }}
+              >
+                <span style={{ color: "var(--fg-1)" }}>
+                  {s.topic_preview?.trim() || s.session_id}
+                </span>
+                <span style={{ fontSize: 10, color: "var(--fg-4)" }}>
+                  {s.message_count} msg{s.message_count === 1 ? "" : "s"}
+                  {when ? ` · ${prettyWhen(when)}` : ""}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
