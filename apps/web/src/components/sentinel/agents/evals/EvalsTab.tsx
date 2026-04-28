@@ -110,11 +110,11 @@ export function EvalsTab() {
           variant="ghost"
           size="icon-xs"
           onClick={() => runs.refetch()}
-          disabled={runs.isFetching}
+          disabled={runs.isLoading}
           aria-label="Refresh runs"
           title="Refresh runs"
         >
-          <RefreshCw className={runs.isFetching ? "animate-spin" : ""} />
+          <RefreshCw className={runs.isLoading ? "animate-spin" : ""} />
         </Button>
       </div>
       {trackedJobId ? (

@@ -379,12 +379,12 @@ export function useStackAction(tier: StackTier) {
   };
 }
 
-/** GPU + CPU + memory snapshot. Polls every 3s. */
+/** GPU + CPU + memory snapshot. Polls every 10s. */
 export function useSentinelSystemStats() {
   return useQuery<SentinelSystemStats>({
     queryKey: ["sentinel", "system", "stats"],
     queryFn: fetchSystemStats,
-    refetchInterval: 3_000,
+    refetchInterval: 10_000,
     retry: false,
   });
 }

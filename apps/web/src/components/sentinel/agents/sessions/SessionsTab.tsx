@@ -48,10 +48,10 @@ export function SessionsTab() {
           variant="ghost"
           size="icon-xs"
           onClick={() => sessions.refetch()}
-          disabled={sessions.isFetching}
+          disabled={sessions.isLoading}
           aria-label="Refresh"
         >
-          <RefreshCw className={sessions.isFetching ? "animate-spin" : ""} />
+          <RefreshCw className={sessions.isLoading ? "animate-spin" : ""} />
         </Button>
       </div>
       <Card>

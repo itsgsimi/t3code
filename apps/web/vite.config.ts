@@ -97,6 +97,20 @@ export default defineConfig({
       host,
     },
   },
+  preview: {
+    host,
+    port,
+    strictPort: true,
+    ...(devProxyTarget
+      ? {
+          proxy: {
+            "/.well-known": { target: devProxyTarget, changeOrigin: true },
+            "/api": { target: devProxyTarget, changeOrigin: true },
+            "/attachments": { target: devProxyTarget, changeOrigin: true },
+          },
+        }
+      : {}),
+  },
   build: {
     outDir: "dist",
     emptyOutDir: true,
